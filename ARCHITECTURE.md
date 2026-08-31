@@ -2,38 +2,39 @@
 
 ## Status
 
-**Release lifecycle: Development.** This document describes the current source architecture on the asynchronous-provider-runtime development branch and the accepted-main evidence boundary. The accepted main baseline is `19737c11c59a30a94ee8b6dad8855b449c011eca`; the new asynchronous runtime is not accepted-main behavior until its exact candidate passes CI and is merged.
+**Release lifecycle: Development.** The asynchronous provider-runtime milestone is accepted on authoritative `main` at `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9`. Exact-main workflow run `33429792389` succeeded after pull request #4 exact-candidate validation.
 
-This milestone implements structured concurrent provider execution, superseded-query cancellation, and bounded provider timeouts while preserving the current local-only provider authority boundary.
+This milestone implements structured concurrent provider execution, superseded-query cancellation, bounded provider timeouts, and fail-closed provider eligibility while preserving the current local-only provider authority boundary.
 
 Production acceptance and Stable qualification remain false.
 
 ## Authority Model
 
-GoreeCloud Index coordinates universal search. It does not become the owner of provider resources.
+GoreeCloud Index coordinates universal search; it does not own provider resources.
 
-- Android remains authoritative for installed launcher activities and application launch behavior.
-- GoreeCloud Launcher is an invocation/presentation surface and may contribute Launcher-specific context, but Index remains the universal-search/indexing authority.
+- Android remains authoritative for installed launcher activities and launch behavior.
+- GoreeCloud Launcher is an invocation/presentation surface; Index remains the universal-search/indexing authority.
 - GoreeCloud Search remains authoritative for Internet/web/current-information search.
-- Future files, contacts, calendar, media, device, extension, and third-party providers remain authoritative for their own resources and permissions.
-- Privacy Shield remains authoritative for applicable purpose, consent, minimization, retention, and local-versus-remote data-use decisions.
+- Future files, contacts, calendar, media, device, extension, and third-party providers remain authoritative for their resources and permissions.
+- Privacy Shield remains authoritative for applicable consent, purpose, minimization, retention, and local/remote data use.
 - GoreeCloud Identity remains authoritative for applicable caller/user/profile/provider identity and scoped authorization.
-- Wardveil Security remains authoritative for applicable trust, protection, threat, and security-evidence decisions.
+- Wardveil Security remains authoritative for applicable provider trust, threat, protection, and security evidence.
+- Everkeep remains authoritative for continuity of durable Index configuration where applicable.
 
 ## Current Android Flow
 
 ```text
 Launcher or user
   → MainActivity
-  → explicit IndexExecutionContext
+  → IndexExecutionContext
   → IndexRoot / LaunchedEffect(query)
   → IndexQueryEngine
-      → filter providers through fail-closed execution eligibility
+      → fail-closed provider eligibility
       → supervisorScope
-      → concurrent async dispatch on provider dispatcher
+      → concurrent async dispatch
       → per-provider withTimeout
       → preserve external CancellationException
-      → normalize provider outcome
+      → normalize provider outcomes
   → IndexSearchSnapshot
       → ranked provider-scoped results
       → FAILED / TIMED_OUT provider issues
@@ -41,158 +42,107 @@ Launcher or user
   → exact Android component launch handoff
 ```
 
-The current implemented provider remains local launcher applications. No remote provider and no local content index are enabled.
+The only implemented provider remains local launcher applications. No remote provider or local content index is enabled.
 
 ## External Search Entry Contract
 
-`GoreeCloudIndexContract` defines:
+`GoreeCloudIndexContract` defines action `com.goreecloud.index.action.SEARCH`, initial-query extra `com.goreecloud.index.extra.QUERY`, and Applications provider ID `goreecloud.index.provider.apps`.
 
-- Action: `com.goreecloud.index.action.SEARCH`
-- Initial-query extra: `com.goreecloud.index.extra.QUERY`
-- Applications provider ID: `goreecloud.index.provider.apps`
-
-The Android manifest exports the user-visible search activity for this search action. This permits GoreeCloud Launcher to invoke Index with an initial query without moving universal-search authority into Launcher.
-
-Integrated representative-device acceptance of this handoff remains pending.
+The user-visible search activity accepts the contract without moving universal-search authority into Launcher. Integrated representative-device acceptance remains pending.
 
 ## Core Models
 
-`IndexQuery` contains normalized query text and a bounded result limit.
+`IndexProvider` declares stable identity, display name, processing location (`LOCAL`, `REMOTE`, `MIXED`), timeout, and suspendable search.
 
-`IndexResult` preserves provider-scoped identity, result type, display fields, relevance score, and an optional typed action.
+`IndexExecutionContext` contains exact provider eligibility plus `localOnly`. Unlisted providers are not dispatched; remote/mixed providers are not dispatched while local-only is true.
 
-`IndexAction` currently supports exact Android launcher-component handoff through `LaunchActivity(packageName, className)`.
+This context is internal eligibility logic, not accepted Privacy Shield or Identity authorization.
 
-`IndexProvider` declares:
-
-- stable provider ID;
-- human-readable display name;
-- processing location (`LOCAL`, `REMOTE`, or `MIXED`);
-- provider timeout bound;
-- suspendable search operation.
-
-`IndexExecutionContext` is a fail-closed execution-eligibility record. It contains the exact set of provider IDs eligible for a query and a `localOnly` boundary. A provider that is not listed is not dispatched. A remote or mixed provider is not dispatched while `localOnly=true`.
-
-This context is intentionally not named an authorization token or privacy decision. It is an internal runtime guard that future Privacy Shield and Identity authorization must feed through approved contracts rather than bypass.
-
-`IndexProviderIssue` identifies a failed or timed-out provider without exposing provider exception details.
-
-`IndexSearchSnapshot` returns successful results and provider issues independently, allowing partial success and clear degraded-state presentation.
+`IndexProviderIssue` records sanitized `FAILED` or `TIMED_OUT` outcomes. `IndexSearchSnapshot` returns successful results and provider issues independently.
 
 ## Asynchronous Query Runtime
 
-`IndexQueryEngine.search` is suspendable and uses Kotlin structured concurrency.
+Current accepted engine behavior:
 
-Current behavior:
+- normalize query and clamp result count;
+- filter providers before dispatch;
+- run eligible providers concurrently under `supervisorScope`;
+- use an injectable provider dispatcher;
+- enforce provider timeout with `withTimeout` and a five-second safety ceiling;
+- map provider timeouts to `TIMED_OUT`;
+- map ordinary provider exceptions to `FAILED`;
+- rethrow external `CancellationException`;
+- preserve healthy sibling results;
+- rank before provider-scoped deduplication;
+- apply final result cap.
 
-- Trim query text.
-- Clamp requested results to 1–100.
-- Filter providers through `IndexExecutionContext` before dispatch.
-- Dispatch eligible providers concurrently under `supervisorScope`.
-- Execute provider work on an injectable provider dispatcher.
-- Apply each provider's timeout with `withTimeout`.
-- Clamp provider timeout requests to a global 5-second safety ceiling.
-- Convert a provider timeout into a sanitized `TIMED_OUT` provider issue.
-- Convert an ordinary provider exception into a sanitized `FAILED` provider issue.
-- Explicitly rethrow external `CancellationException` so supersession/lifecycle cancellation is never mislabeled as provider failure.
-- Preserve healthy provider results when another provider fails or times out.
-- Rank by descending score, then case-insensitive title, then provider ID.
-- Deduplicate after ranking by `providerId:resultId`, preserving the best-ranked representation for that provider-scoped identity.
-- Apply the final result cap.
-
-`supervisorScope` prevents one handled provider failure from cancelling healthy siblings, while ordinary parent cancellation still propagates through the complete query tree.
+Handled provider failure does not cancel healthy siblings; ordinary parent/query cancellation still propagates through the structured coroutine tree.
 
 ## Superseded-Query Cancellation
 
-`IndexRoot` invokes the suspendable engine inside `LaunchedEffect(query)`. When the query key changes, Compose cancels the previous effect before running the next query. Because the engine does not swallow external cancellation, provider coroutines for the superseded query are cancelled as part of the same structured concurrency tree.
+`IndexRoot` invokes search in `LaunchedEffect(query)`. A query change cancels the prior effect and its provider work. The engine does not swallow that cancellation.
 
-This is the first supersession-cancellation implementation. Incremental/streaming result delivery is not yet implemented.
+Incremental/streaming delivery is not yet implemented.
 
 ## Android Applications Provider
 
-`InstalledAppsProvider` uses `ACTION_MAIN` plus `CATEGORY_LAUNCHER` discovery. The manifest declares the same narrow query contract and does not request `QUERY_ALL_PACKAGES`.
+`InstalledAppsProvider`:
 
-Provider behavior:
+- uses `ACTION_MAIN` + `CATEGORY_LAUNCHER`;
+- declares `LOCAL` processing;
+- declares provisional 500 ms Development timeout;
+- maintains a volatile immutable launcher-entry snapshot;
+- refreshes on resume;
+- uses API 33+ `ResolveInfoFlags` with compatibility fallback;
+- removes Index itself;
+- preserves exact `ComponentName` identity;
+- searches app labels/package names;
+- returns typed launch actions.
 
-- Declares `LOCAL` processing.
-- Declares a provisional 500 ms development timeout.
-- Maintains a volatile immutable snapshot of launcher entries.
-- Refreshes when Index resumes.
-- Uses modern `ResolveInfoFlags` on Android 13/API 33+ and the compatibility API on earlier supported Android versions.
-- Removes Index itself from results.
-- Preserves exact `ComponentName` identity so different launcher components do not collapse into a package-only record.
-- Matches application label and package name.
-- Returns provider-scoped typed launch actions.
-
-The 500 ms value is a development safety bound for this in-memory provider, not an accepted product latency target or representative-device performance SLA.
+The 500 ms timeout is a Development safety bound, not an accepted performance SLA.
 
 ## UI Architecture
 
-`IndexRoot` is a presentation adapter over `IndexSearchSnapshot`; it does not manufacture provider authority or security/privacy state.
+The current UI focuses the query on entry, identifies **Applications · On-device**, uses safe-drawing insets, displays non-animated searching state, distinguishes provider timeout from failure, keeps valid results when another provider reports an issue, preserves source labels, and uses typed result actions.
 
-The current UI:
+Glaze UI 2.1.0 is the target. Formal consumer conformance and human visual/accessibility acceptance remain pending.
 
-- Focuses the search field on entry.
-- Identifies provider coverage as **Applications · On-device**.
-- Uses safe-drawing insets under edge-to-edge rendering.
-- Shows a non-animated searching text state.
-- Shows provider timeout separately from generic provider failure.
-- Keeps valid results visible when another provider reports an issue.
-- Distinguishes browse/blank, no-match, degraded-provider, searching, and result states.
-- Preserves source labels in result rows.
-- Uses typed result actions for handoff.
+## Privacy and Security Boundaries
 
-Glaze UI 2.1.0 is the current target. Exact application-specific consumer conformance and human visual/accessibility acceptance remain pending.
+The current provider operates locally. The manifest requests no Android `INTERNET` or unrestricted `QUERY_ALL_PACKAGES`. The source adds no intentional query analytics, remote telemetry, or persistent search-history store.
 
-## Privacy Boundary
+`localOnly=true` prevents remote/mixed dispatch in the current MainActivity path, but this is not accepted Privacy Shield runtime integration.
 
-The current Android application provider operates locally. The manifest does not request `INTERNET`, and the source adds no intentional query analytics, telemetry, or persistent search-history store.
+Provider output remains untrusted input. Index does not infer Wardveil trust/protection from successful provider output. Wardveil runtime evidence remains pending.
 
-`IndexExecutionContext(localOnly=true)` adds a fail-closed runtime guard against dispatching remote/mixed providers in the current path. It is not accepted Privacy Shield runtime integration and must not be represented as one.
+## Identity, Mesh, and Everkeep Boundaries
 
-Future providers that handle private content or remote processing require explicit Privacy Shield authorization and retention decisions before activation.
+GoreeCloud Identity must provide applicable scoped authorization; authentication is not blanket search permission. GoreeCloud Mesh may coordinate first-party provider discovery without taking source ownership. Neither runtime integration is accepted yet.
 
-## Security Boundary
-
-Provider output is untrusted data for normalized presentation and typed actions. Index does not infer that a provider or result is trusted, protected, clean, or Wardveil-approved merely because the provider returned successfully.
-
-Wardveil Security runtime evidence and trust policy remain pending. Extension and third-party providers must not be enabled before applicable trust, isolation, and action-validation requirements are implemented.
-
-## Identity and Mesh Boundary
-
-GoreeCloud Identity will provide applicable user/profile/device/caller/provider identity and scoped authorization. Authentication must not become blanket search permission.
-
-GoreeCloud Mesh may coordinate first-party provider discovery and availability, but it must not take over provider data ownership or the independent authorities of Identity, Privacy Shield, Wardveil Security, or Everkeep.
-
-Neither runtime integration is currently accepted.
-
-## Everkeep Boundary
-
-Current query state is transient. No durable Index database, provider preference store, or remote-provider configuration exists yet.
-
-When durable state is introduced, Everkeep should protect only state that requires continuity. Reconstructible search indexes/caches should normally be rebuilt from authoritative providers rather than backed up as irreplaceable data.
+Current query/runtime state is transient. Future durable configuration may require Everkeep continuity coverage; reconstructible indexes/caches should normally rebuild from authoritative providers.
 
 ## Failure and Recovery Model
 
-Current handled conditions include:
+- Provider exception → sanitized `FAILED`; healthy results preserved.
+- Provider timeout → sanitized `TIMED_OUT`; healthy results preserved.
+- Parent/query cancellation → propagates, not converted to issue.
+- Disallowed provider → not dispatched.
+- Remote/mixed provider under local-only → not dispatched.
+- No match / no applications → explicit empty states.
+- Android launch failure → user-visible feedback.
 
-- Ordinary provider exception → sanitized `FAILED` issue; healthy results preserved.
-- Provider exceeds bounded timeout → sanitized `TIMED_OUT` issue; healthy results preserved.
-- Parent/query cancellation → cancellation propagates; it is not converted into an issue.
-- Provider disallowed by execution context → provider is not dispatched.
-- Remote/mixed provider in local-only context → provider is not dispatched.
-- No matching application → explicit no-match state.
-- No available launcher applications → explicit empty browse state.
-- Failed Android launch handoff → user-visible failure feedback.
+No remote fallback is silently activated.
 
-No remote fallback is activated if a local provider fails. Search queries have no destructive side effects.
+## Validation Evidence
 
-## Testing Boundary
+PR #4 candidate `d8b563705ccf1d05444df18e7a593a454d4c4103` passed exact-candidate run `33429486374`.
 
-Coroutine tests use an injected test dispatcher and virtual time to verify provider concurrency, timeout behavior, cancellation propagation, local-only fail-closed gating, provider failure isolation, result bounds, ranking-before-deduplication, and text matching.
+Merged main `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` passed exact-main run `33429792389`.
 
-Passing branch CI would establish exact-candidate source/build evidence only. It would not establish representative-device performance, platform-integration acceptance, production release, or Stable qualification.
+Accepted-main APK SHA-256: `a2605bb1e993dd027afc68b0900b60f2fcf9567ec59399e5a02a178af1cc815f`; artifact `9772201920`.
+
+This is Development source/build evidence only.
 
 ## Next Architecture Milestone
 
-After exact-candidate validation and merge of this asynchronous foundation, the next milestone is an end-to-end permission-aware second provider whose authoritative source, Privacy Shield/Identity decision path, cancellation/timeout behavior, and user-facing provenance can be validated without broadening authority implicitly. Files, contacts, or calendar should not be added until the chosen provider contract is verified against its governing source and permission requirements.
+The next milestone is one permission-aware second provider with a clearly authoritative source and a real Privacy Shield/Identity decision path before dispatch. Its cancellation, timeout, provenance, actions, and failure behavior must be validated end to end before broader provider expansion.
