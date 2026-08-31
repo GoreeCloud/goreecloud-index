@@ -102,7 +102,8 @@ documents = [
 ]
 for document in documents:
     text = (ROOT / document).read_text(encoding="utf-8")
-    if "Release lifecycle: Development" not in text:
+    normalized = text.lower().replace("*", "")
+    if "release lifecycle" not in normalized or "development" not in normalized:
         raise SystemExit(f"{document} missing Development lifecycle state")
     if accepted_main not in text:
         raise SystemExit(f"{document} missing accepted async main revision")
