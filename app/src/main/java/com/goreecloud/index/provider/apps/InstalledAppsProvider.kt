@@ -11,6 +11,7 @@ import com.goreecloud.index.core.IndexQuery
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
 import com.goreecloud.index.core.IndexTextMatcher
+import java.util.Locale
 
 internal data class InstalledAppEntry(
     val label: String,
@@ -57,7 +58,8 @@ class InstalledAppsProvider(
         }
         .sortedWith(
             compareByDescending<IndexResult> { it.score }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                .thenBy { it.title.lowercase(Locale.ROOT) }
+                .thenBy { it.providerId }
         )
         .take(query.maxResults)
         .toList()
@@ -71,8 +73,9 @@ class InstalledAppsProvider(
             .filterNot { it.packageName == context.packageName }
             .distinctBy { it.componentName.flattenToString() }
             .sortedWith(
-                compareBy<InstalledAppEntry>(String.CASE_INSENSITIVE_ORDER) { it.label }
+                compareBy<InstalledAppEntry> { it.label.lowercase(Locale.ROOT) }
                     .thenBy { it.packageName }
+                    .thenBy { it.className }
             )
             .toList()
     }
