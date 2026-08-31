@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.goreecloud.index.core.IndexProviderIssue
+import com.goreecloud.index.core.IndexProviderIssueKind
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
 import com.goreecloud.index.core.IndexSearchSnapshot
@@ -51,16 +52,22 @@ import com.goreecloud.index.core.IndexSearchSnapshot
 @Composable
 fun IndexRoot(
     initialQuery: String,
-    onSearch: (String) -> IndexSearchSnapshot,
+    onSearch: suspend (String) -> IndexSearchSnapshot,
     onOpenResult: (IndexResult) -> Unit,
 ) {
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var snapshot by remember { mutableStateOf(IndexSearchSnapshot()) }
+    var searching by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(query) {
-        snapshot = onSearch(query)
+        searching = true
+        try {
+            snapshot = onSearch(query)
+        } finally {
+            searching = false
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -110,6 +117,15 @@ fun IndexRoot(
 
             SourceStatusCard()
 
+            if (searching) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "Searching applications…",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             snapshot.providerIssues.firstOrNull()?.let { issue ->
                 Spacer(Modifier.height(12.dp))
                 ProviderIssueCard(issue)
@@ -125,6 +141,7 @@ fun IndexRoot(
                 ) {
                     Text(
                         text = when {
+                            searching -> "Searching…"
                             snapshot.providerIssues.isNotEmpty() -> "Search is temporarily unavailable"
                             query.isBlank() -> "No searchable applications are available"
                             else -> "No application matches"
@@ -187,6 +204,17 @@ private fun SourceStatusCard() {
 
 @Composable
 private fun ProviderIssueCard(issue: IndexProviderIssue) {
+    val title = when (issue.kind) {
+        IndexProviderIssueKind.FAILED -> "${issue.providerName} temporarily unavailable"
+        IndexProviderIssueKind.TIMED_OUT -> "${issue.providerName} took too long"
+    }
+    val detail = when (issue.kind) {
+        IndexProviderIssueKind.FAILED ->
+            "Index isolated the provider failure and kept results from healthy providers."
+        IndexProviderIssueKind.TIMED_OUT ->
+            "Index stopped waiting at the provider's bounded timeout and kept results from healthy providers."
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -196,13 +224,13 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = "${issue.providerName} temporarily unavailable",
+                text = title,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
             Text(
-                text = "Index kept the provider failure isolated instead of treating it as a successful empty result.",
+                text = detail,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.padding(top = 2.dp),

@@ -4,18 +4,21 @@
 
 - **Product:** GoreeCloud Index
 - **Repository:** `GoreeCloud/goreecloud-index`
-- **Lifecycle state:** Active development — native Android application-search foundation
+- **Release lifecycle:** Development
+- **Current source milestone:** Native Android application-search foundation with asynchronous provider runtime
 - **Development model:** Original GoreeCloud-owned native software built from the ground up
 - **License:** GNU Affero General Public License v3.0
 - **Production acceptance:** No
 - **Stable qualification:** No
 - **Current Stable Glaze UI target:** 2.1.0
 
-This specification defines approved target scope and current source boundaries. Only sections explicitly describing current implementation may be treated as source-capability claims. Source capability does not automatically establish device, integration, production, or Stable acceptance.
+This specification defines approved target scope and current source boundaries. Only sections explicitly describing current implementation may be treated as source-capability claims. Source capability does not automatically establish exact-candidate acceptance, representative-device behavior, platform integration, production acceptance, or Stable qualification.
+
+The accepted main baseline before the current asynchronous branch is `19737c11c59a30a94ee8b6dad8855b449c011eca`. Exact-main run `33420873144` passed for that baseline. The `0.2.0-dev` asynchronous runtime requires its own exact-candidate validation and merge acceptance.
 
 ## 2. Purpose and Responsibilities
 
-GoreeCloud Index is the universal search and indexing authority for GoreeCloud. It accepts a query, determines which authorized providers may participate, retrieves provider results, normalizes and ranks them, preserves provenance, and presents provider-authorized actions through a consistent search experience.
+GoreeCloud Index is the universal search and indexing authority for GoreeCloud. It accepts a query, determines which eligible and authorized providers may participate, retrieves provider results, normalizes and ranks them, preserves provenance, and presents provider-authorized actions through a consistent search experience.
 
 Index must:
 
@@ -30,394 +33,317 @@ Index must:
 
 ## 3. Product Boundary
 
-GoreeCloud Index and GoreeCloud Search have distinct responsibilities.
-
-- **Index** coordinates universal discovery across applications, files, contacts, calendar, media, settings, GoreeCloud services, connected devices, extensions, third-party services, and optional Internet results.
+- **GoreeCloud Index** coordinates universal discovery across applications, files, contacts, calendar, media, settings, GoreeCloud services, connected devices, extensions, third-party services, and optional Internet results.
 - **GoreeCloud Search** remains authoritative for Internet/web/current-information search.
+- **GoreeCloud Launcher** is a primary Index invocation/presentation surface and may provide Launcher-specific context. Launcher must not become a competing universal index.
+- Source applications and services remain authoritative for their own data. Searchability never transfers data ownership to Index.
 
-GoreeCloud Launcher is a primary Index invocation/presentation surface and may provide Launcher-specific context. Launcher must not become a competing universal index.
-
-Index must not take ownership of provider data merely because the resource is searchable.
-
-## 4. Native Application Model
+## 4. Native Android Application Model
 
 The production implementation must remain original GoreeCloud-owned software. Complete third-party universal-search products may not become the permanent implementation foundation.
 
-Narrow operating-system APIs, frameworks, indexing/database primitives, protocol libraries, and other justified foundations may be used when they improve compatibility, accessibility, safety, or maintainability without replacing GoreeCloud authority or product direction.
-
-The first native client is Android:
+Current Android identity on this branch:
 
 - Production application ID: `com.goreecloud.index`
 - Development application ID: `com.goreecloud.index.dev`
+- Development version: `0.2.0-dev`
+- Version code: `2`
 - Minimum API: 26
 - Compile API: 37
 - Target API: 36
+
+Narrow operating-system APIs, frameworks, coroutine libraries, indexing/database primitives, protocol libraries, and other justified foundations may be used when they improve compatibility, accessibility, safety, or maintainability without replacing GoreeCloud product authority.
 
 ## 5. Target Platforms and Surfaces
 
 Long-term targets include phone, tablet, laptop, desktop, and other approved GoreeCloud device classes. Platform support must be claimed only after platform-specific implementation and validation.
 
-Potential surfaces include:
+Potential surfaces include GoreeCloud Launcher universal search, a dedicated Index application, embedded first-party application search, keyboard-accessible desktop invocation, system-search entry points, and authorized application/service APIs.
 
-- GoreeCloud Launcher universal search.
-- Dedicated GoreeCloud Index application surfaces.
-- Embedded search in compatible GoreeCloud applications.
-- Keyboard-accessible desktop invocation.
-- Mobile/tablet system-search entry points.
-- Authorized application/service API calls.
+## 6. Provider-Oriented Architecture
 
-A shared search core should preserve query semantics, provider identity, permission boundaries, ranking rules, and action contracts while each platform adapts its presentation natively.
-
-## 6. Architecture
-
-The target architecture is provider-oriented and authority-preserving:
+The target architecture is authority-preserving:
 
 ```text
 User query
-  → Query intake
-  → Identity / caller context
-  → Privacy and permission evaluation
-  → Provider discovery
-  → Bounded provider dispatch
-  → Provider retrieval
-  → Result normalization
-  → Security / trust evaluation where applicable
-  → Ranking, grouping, and deduplication
-  → Source-aware Glaze UI presentation
-  → Authorized result action
+  → query intake
+  → caller/user identity
+  → privacy/permission evaluation
+  → provider discovery
+  → execution eligibility
+  → bounded concurrent provider dispatch
+  → provider retrieval
+  → result normalization
+  → applicable trust/security evaluation
+  → ranking/grouping/deduplication
+  → source-aware Glaze UI presentation
+  → authorized result action
 ```
 
-Target components include Query Controller, Provider Registry, Authorization Gate, Local Index Manager, Provider Runtime, Normalizer, Ranker, Deduplicator/Grouper, Action Resolver, and Search UI Adapter.
+The current Android source implements provider-neutral models, explicit processing location, execution eligibility, structured concurrent dispatch, provider timeouts, cancellation propagation, deterministic ranking/deduplication, one local applications provider, Launcher handoff, and a Compose search surface.
 
-The current Android slice implements a bounded subset: provider-neutral core models, `IndexQueryEngine`, one Android launcher-applications provider, deterministic ranking/deduplication, provider issue reporting, Launcher handoff, and a Compose search surface.
-
-## 7. Search Provider Model
+## 7. Provider Contract
 
 Every source must participate through an explicit provider contract rather than unrestricted internal database access.
 
-A mature provider must be able to declare:
+The current `IndexProvider` contract requires:
 
-- Stable provider identity and human-readable name.
-- Ownership/provider type.
-- Searchable resource types.
-- Query capabilities.
-- Required scopes/permissions.
-- Local, remote, or mixed processing.
-- Network requirements.
-- Result fields and authorized actions.
-- Health/availability state.
-- Optional indexing/change-notification support.
-- Privacy/retention characteristics.
-- Contract version and capability negotiation.
+- stable provider ID;
+- human-readable display name;
+- processing location: `LOCAL`, `REMOTE`, or `MIXED`;
+- provider timeout declaration;
+- suspendable search operation.
 
-Providers must be independently cancellable, timeout-bounded, permission-aware, and failure-isolated before remote or expensive providers are enabled.
+A mature external/provider ecosystem additionally requires provider ownership/type, resource types, query capabilities, required scopes/permissions, network requirements, result/action capabilities, health state, indexing/change-notification support, retention characteristics, contract versioning, and capability negotiation.
 
-The current provider contract is synchronous because the first provider searches an in-memory snapshot of local launcher applications. This is not the final multi-provider runtime.
+## 8. Execution Eligibility and Authorization Boundary
 
-## 8. Current Applications Provider
+`IndexExecutionContext` currently carries:
 
-The Android applications provider is implemented in source and uses:
+- exact `allowedProviderIds`;
+- `localOnly`.
 
-- `Intent.ACTION_MAIN`.
-- `Intent.CATEGORY_LAUNCHER`.
-- Narrow manifest package visibility for the same launcher intent.
-- No unrestricted `QUERY_ALL_PACKAGES` permission.
-- No `INTERNET` permission in the current local-only slice.
+The engine fails closed: providers outside the allowlist are not dispatched, and `REMOTE`/`MIXED` providers are not dispatched when `localOnly=true`.
+
+This is an internal execution-eligibility guard. It does **not** constitute accepted Privacy Shield consent/purpose authorization or GoreeCloud Identity authorization. Future platform authorities must feed the provider-runtime boundary through approved contracts rather than being inferred from local application state.
+
+## 9. Asynchronous Query Runtime
+
+`IndexQueryEngine.search` is suspendable and uses Kotlin structured concurrency.
+
+Current source requirements and behavior:
+
+- Trim query text.
+- Clamp result count to 1–100.
+- Filter providers through execution eligibility before dispatch.
+- Dispatch eligible providers concurrently under `supervisorScope`.
+- Use an injectable provider dispatcher.
+- Apply each provider timeout through `withTimeout`.
+- Clamp timeout declarations to a global five-second safety ceiling.
+- Convert timeout to sanitized `TIMED_OUT` provider issue.
+- Convert ordinary provider exception to sanitized `FAILED` provider issue.
+- Explicitly rethrow external `CancellationException`.
+- Preserve healthy-provider results when another provider fails or times out.
+- Rank before deduplication by score, case-insensitive title, then provider ID.
+- Deduplicate by `providerId:resultId`, retaining the best-ranked representation.
+- Apply the final result cap.
+
+These timeout values are Development safety bounds, not performance SLAs.
+
+## 10. Superseded-Query Cancellation
+
+`IndexRoot` executes the suspendable search operation from `LaunchedEffect(query)`. A query change cancels the previous effect and therefore cancels its structured provider coroutine tree.
+
+The engine must not catch external cancellation as an ordinary provider failure. Tests must verify cancellation propagation explicitly.
+
+Incremental/streaming result delivery is not yet implemented; a search snapshot is returned after all eligible providers have either completed, failed, timed out, or the parent query has been cancelled.
+
+## 11. Provider Failure Model
+
+`IndexSearchSnapshot` contains successful normalized results and sanitized `IndexProviderIssue` entries.
+
+Issue kinds:
+
+- `FAILED` — ordinary provider exception.
+- `TIMED_OUT` — provider exceeded its bounded execution time.
+
+Provider exception contents must not be surfaced directly to the user. A provider issue must not suppress healthy sibling-provider results.
+
+## 12. Current Android Applications Provider
+
+The implemented provider uses:
+
+- `Intent.ACTION_MAIN`;
+- `Intent.CATEGORY_LAUNCHER`;
+- narrow manifest visibility for the same launcher intent;
+- no unrestricted `QUERY_ALL_PACKAGES` permission;
+- no `INTERNET` permission in the current local-only slice;
 - API 33+ `PackageManager.ResolveInfoFlags` with older-API compatibility.
 
-Provider behavior:
+It declares:
 
-- Discovers launcher-visible activities.
-- Excludes the current Index application.
-- Preserves exact `ComponentName` identity.
-- Refreshes its immutable cached entry snapshot when Index resumes.
-- Searches application labels and package names.
-- Produces typed `LaunchActivity` actions.
-- Applies the requested result bound.
+- provider ID `goreecloud.index.provider.apps`;
+- display name `Applications`;
+- processing location `LOCAL`;
+- provisional timeout `500 ms`.
 
-Representative-device acceptance remains pending.
+It discovers launcher-visible activities, excludes Index itself, preserves exact `ComponentName` identity, refreshes its immutable snapshot when Index resumes, searches labels/package names, and produces typed `LaunchActivity` actions.
 
-## 9. Planned Provider Categories
+The 500 ms value is not an accepted representative-device latency target.
 
-Planned categories include:
+## 13. Query Matching and Ranking
 
-- Files and folders.
-- Contacts.
-- Calendar events.
-- Media.
-- Settings and platform actions where approved.
-- First-party GoreeCloud application/service resources.
-- Connected-device resources.
-- GoreeCloud extensions.
-- Optional third-party services.
-- GoreeCloud Search Internet/web results.
+Current application matching supports:
 
-Each provider requires its own permission, privacy, security, lifecycle, failure, and acceptance evidence. A category must not be made visible merely by adding a UI section.
+- exact title;
+- title prefix;
+- word prefix;
+- title containment;
+- exact package/secondary match;
+- package/secondary prefix;
+- package/secondary containment;
+- low browse score for blank query.
 
-## 10. Launcher Search Handoff
+Across provider results, higher scores rank first. Provider-scoped duplicate identities are collapsed only after ranking so the highest-ranked representation is retained.
 
-`GoreeCloudIndexContract` defines the first Android first-party handoff:
+Future ranking may incorporate authorized recency, provider signals, resource type, context, locality, availability, and explicit user preferences. Personalization must remain Privacy Shield-governed and must not become hidden behavioral profiling.
+
+## 14. Launcher Search Handoff
+
+`GoreeCloudIndexContract` defines:
 
 - Search action: `com.goreecloud.index.action.SEARCH`
 - Initial-query extra: `com.goreecloud.index.extra.QUERY`
 
-The Android activity accepts an optional initial query through this contract. This provides a Launcher→Index invocation boundary without making Launcher responsible for universal indexing.
+This provides a Launcher→Index invocation boundary without transferring universal-search authority to Launcher. Integrated representative-device acceptance remains pending.
 
-Integrated device acceptance remains pending.
+## 15. Current Search UI
 
-## 11. Query Behavior
+The Compose surface currently provides:
 
-Target query behavior includes incremental search, source/resource filtering, exact/prefix/fuzzy matching where appropriate, metadata-aware matching, optional structured operators, privacy-governed suggestions/history, local-only mode, cancellation, and provider timeouts.
+- immediate query focus;
+- **Applications · On-device** source/processing disclosure;
+- non-animated searching text state;
+- blank/browse state;
+- no-match state;
+- provider ordinary-failure state;
+- provider timeout state;
+- valid result rows and source labels;
+- launch-failure feedback;
+- safe-drawing insets;
+- 56 px minimum search-field height;
+- 72 px minimum result-row height;
+- 48 px result identity surface;
+- semantic headings.
 
-Current application matching is deterministic:
+The UI targets Glaze UI 2.1.0. Formal application-specific Glaze consumer conformance, reduced-transparency, contrast, reduced-motion, large-text/reflow, and representative-device visual/accessibility acceptance remain pending.
 
-- Exact title.
-- Title prefix.
-- Word prefix.
-- Title containment.
-- Exact package/secondary match.
-- Package/secondary prefix.
-- Package/secondary containment.
-- Blank query receives a low browse score.
+## 16. Planned Provider Categories
 
-The query result limit is clamped to 1–100; the default is 50.
+Planned categories include files/folders, contacts, calendar, media, settings/platform actions, first-party GoreeCloud application/service resources, connected-device resources, extensions, optional third-party services, and GoreeCloud Search Internet/web results.
 
-## 12. Current Query Snapshot and Failure Isolation
+A provider category must not be enabled merely because the asynchronous runtime can dispatch it. Each provider requires applicable source authority, permissions, privacy, security, identity, retention, failure, recovery, and acceptance evidence.
 
-`IndexQueryEngine` returns `IndexSearchSnapshot`, which contains:
-
-- Successful normalized results.
-- Sanitized `IndexProviderIssue` records.
-
-A provider exception must not suppress healthy results from other providers. Provider failures are reported by provider identity/name without exposing provider exception contents to the UI.
-
-The current engine catches provider `Exception` failures, deduplicates results by `providerId:resultId`, sorts deterministically, and applies the final result bound.
-
-## 13. Common Result Model
-
-A normalized result must preserve only the information needed for consistent search behavior and safe handoff, including:
-
-- Provider-scoped result identifier.
-- Provider identifier.
-- Resource/result type.
-- Primary and secondary labels.
-- Relevance signal.
-- Source/provenance.
-- Authorized action.
-- Safe handoff identity.
-
-Future fields may include visual metadata, location/origin, availability, and privacy/security indicators only when those states are backed by authoritative evidence.
-
-Normalization must never make Index appear to own the underlying resource.
-
-## 14. Ranking, Grouping, and Deduplication
-
-Ranking must prioritize useful results without bypassing permissions or hiding provenance.
-
-Target signals may include textual relevance, provider-supplied scores, resource type, source preferences, authorized recency/frequency, application context, locality, and availability.
-
-Personalization signals must be minimized and Privacy Shield-governed.
-
-Current Android application ranking uses deterministic `IndexTextMatcher` scores. Result deduplication is provider-scoped.
-
-## 15. Local Indexing and Storage
+## 17. Local Indexing and Storage
 
 Local indexing should exist only when it materially improves search latency or quality.
 
-Requirements:
-
-- Prefer derived searchable metadata over unnecessary full-content duplication.
-- Scope data to applicable user/profile/device authority.
-- Protect sensitive index data according to platform requirements.
-- Support provider removal and index cleanup.
-- Support rebuild/corruption recovery.
-- Support incremental updates where providers expose change events.
-- Distinguish reconstructible cache/index state from authoritative user data.
-- Reconcile stale entries before sensitive actions.
+Requirements include derived searchable metadata over unnecessary full-content duplication, user/profile/device scoping, provider removal cleanup, rebuild/corruption recovery, incremental updates where supported, protection of sensitive index state, and strict distinction between reconstructible index/cache state and authoritative source data.
 
 No local content index is implemented yet.
 
-## 16. Third-Party and Extension Providers
-
-Third-party providers are optional and must never be required for core local search.
-
-They must be explicitly enabled, narrowly authorized, transparent about resource types and processing location, independently revocable, isolated from unrelated provider data, and cleaned up according to retention policy after disconnection.
-
-Extension/third-party providers must not be treated as trusted merely because they implement the provider interface. Applicable Wardveil, Privacy Shield, Identity, compatibility, and lifecycle checks remain required.
-
-## 17. Internet Search
+## 18. Internet, Extension, and Third-Party Providers
 
 Internet/web/current-information search must be delegated to GoreeCloud Search as a clearly identified remote provider.
 
-Index must not silently upload unrelated local resource data or silently replace a failed local provider with a less-private remote path.
+Extensions and third-party providers must be optional, explicit, narrowly scoped, transparent about processing location, independently revocable, isolated from unrelated provider data, and subject to applicable Wardveil, Privacy Shield, Identity, compatibility, and lifecycle requirements.
 
-No GoreeCloud Search runtime provider is currently implemented.
+No such provider is currently implemented or enabled.
 
-## 18. Privacy Shield Requirements
+## 19. Privacy Shield Requirements
 
-Privacy Shield is authoritative for applicable consent, purpose limitation, minimization, retention, sharing, and local-versus-remote data use.
+Privacy Shield remains authoritative for applicable consent, purpose limitation, minimization, retention, sharing, and local-versus-remote data use.
 
-Target controls include:
+The current source is local-only for the applications provider, requests no Internet permission, adds no intentional query analytics/remote telemetry/persistent search history, and uses `localOnly=true` execution eligibility. These properties do not establish accepted Privacy Shield runtime integration.
 
-- Provider enable/disable.
-- Permission/purpose explanations.
-- Processing-location disclosure.
-- History/personalization controls.
-- Index/cache clearing.
-- Third-party revocation.
-- Retention limits.
+## 20. Wardveil Security Requirements
 
-Current source behavior is local-only for the applications provider, requests no Internet permission, and adds no intentional query analytics, telemetry, or persistent search history. These source properties do not establish accepted Privacy Shield runtime integration.
+Wardveil Security remains authoritative for applicable provider trust, threat, protection, and security evidence.
 
-## 19. Wardveil Security Requirements
-
-Wardveil Security is authoritative for applicable provider trust, threat, protection, and security evidence.
-
-Index must:
-
-- Preserve least privilege between providers.
-- Treat provider output as untrusted input.
-- Validate provider actions before execution where applicable.
-- Avoid positive security claims without current evidence.
-- Fail safely when a required trust decision is unavailable.
-- Avoid leaking private query/result content into security diagnostics.
+Index must preserve least privilege, treat provider output as untrusted input, validate sensitive provider actions where applicable, avoid positive security claims without evidence, fail safely when required trust decisions are unavailable, and avoid leaking private query/result content into diagnostics.
 
 Current application actions are typed to exact Android launcher components. No Wardveil runtime acceptance is claimed.
 
-## 20. GoreeCloud Identity Requirements
+## 21. GoreeCloud Identity and Mesh
 
-GoreeCloud Identity is authoritative for applicable user, profile, device, caller, application, service, and provider identity.
+GoreeCloud Identity remains authoritative for applicable user/profile/device/caller/provider identity and scoped authorization. Authentication must not become blanket search permission.
 
-Target behavior includes user/profile isolation, caller identity for programmatic search, scoped provider authorization, third-party account association where appropriate, and local identity paths where cloud identity is unnecessary.
+GoreeCloud Mesh may provide bounded first-party provider/capability discovery and availability coordination. It must not take over source ownership or independent platform authorities.
 
-Authentication must not be treated as universal search permission.
+Neither integration is currently accepted.
 
-No accepted Identity runtime integration exists yet.
+## 22. Everkeep
 
-## 21. GoreeCloud Mesh Requirements
+Current query state and asynchronous execution state are transient. No durable Index database or provider-configuration store is established by this branch.
 
-Mesh may provide bounded first-party provider/capability discovery, availability coordination, and service routing. It must not take over provider data ownership or the independent authorities of Identity, Privacy Shield, Wardveil Security, or Everkeep.
+When durable state is introduced, reconstructible indexes/caches should normally be rebuilt from authoritative providers while durable preferences/configuration receive applicable Everkeep continuity coverage.
 
-No Mesh runtime provider discovery is currently implemented.
+## 23. Accessibility and Glaze UI 2.1.0
 
-## 22. Everkeep Requirements
+All user-facing surfaces must complete the applicable Stable Glaze UI 2.1.0 consumer contract before Stable qualification. This includes accessible semantics, logical focus, adequate touch targets, scalable text/reflow, reduced motion, contrast/theme compatibility, reduced-transparency behavior where applicable, and understandable loading/offline/permission/degraded states.
 
-Everkeep governs continuity, recovery, portability, and preservation for durable Index state.
+Current source establishes only a subset and must not be represented as formally Glaze-conformant.
 
-Current search query state is transient. No durable Index database or provider-configuration store is established by the current slice.
+## 24. Reliability and Performance
 
-When durable state is introduced, reconstructible indexes/caches should normally be rebuilt from authoritative providers, while durable preferences/configuration should receive applicable continuity coverage.
+Current source includes structured concurrency, supersession cancellation, provider timeouts, failure isolation, partial healthy results, deterministic ranking, and bounded result counts.
 
-## 23. Glaze UI 2.1.0 Requirements
+Future reliability includes provider health negotiation, incremental results, safe retry policies where justified, index rebuild/corruption recovery, offline provider behavior, and cross-device resilience.
 
-The current Stable design target is Glaze UI 2.1.0. Index must satisfy the complete applicable consumer contract before Stable qualification.
+Exact latency, battery, memory, and provider timeout targets require representative-device evidence.
 
-The current Android source includes:
-
-- Search-first interaction.
-- Immediate focus.
-- Current source/processing disclosure: **Applications · On-device**.
-- Distinct browse, no-match, degraded-provider, and result states.
-- Safe-drawing insets under edge-to-edge rendering.
-- 56 px minimum search-field height.
-- 72 px minimum result rows with a 48 px identity surface.
-- Semantic headings.
-- No decorative motion dependency.
-
-Formal Glaze UI conformance, reduced-transparency, increased-contrast/forced-colors, reduced-motion, large-text/reflow, and representative form-factor acceptance remain pending.
-
-## 24. Accessibility
-
-Implemented surfaces must support screen readers, logical focus, keyboard operation where applicable, adequate touch targets, alternatives to gesture-only behavior, scalable text/layout, reduced motion, contrast/theme compatibility, and understandable loading/offline/permission/degraded states.
-
-The current source establishes basic semantic headings, safe insets, interaction sizing, source labels, and explicit state messaging. Formal accessibility acceptance remains pending.
-
-## 25. Reliability and Performance
-
-Target requirements include fast local result startup, incremental provider results, cancellation, provider timeouts, partial results, low idle CPU/battery impact, bounded memory use, and corruption/rebuild behavior for future local indexes.
-
-The current applications provider filters an in-memory immutable snapshot and caps query output. Exact performance thresholds must be established by representative testing rather than invented in the specification.
-
-## 26. Observability
+## 25. Observability
 
 Operational telemetry must be privacy-minimized and must not log raw private queries or result contents by default.
 
-Future observability may include provider availability/latency, aggregate query timing, index status, provider errors, contract mismatch, and resource impact.
+Future observability may include provider availability/latency, aggregate query timing, index status, provider errors, contract mismatch, cancellation rates, timeout rates, and resource impact. The current slice adds no intentional analytics or remote telemetry.
 
-The current slice adds no intentional analytics or remote telemetry.
+## 26. Testing Requirements
 
-## 27. Configuration
+The asynchronous runtime must have automated tests for:
 
-Planned configuration includes provider enable/disable, local-only mode, Internet-provider preference, third-party connections, result-category visibility/priority, history controls, index rebuild/clear, and permission review/revocation.
+- concurrent provider execution;
+- ordinary failure isolation;
+- timeout isolation;
+- external cancellation propagation;
+- disallowed-provider non-dispatch;
+- local-only remote/mixed provider non-dispatch;
+- deterministic ranking;
+- ranking-before-deduplication;
+- result-count bounds;
+- text matching.
 
-Defaults must favor privacy-preserving local behavior and must not silently activate external services.
+The repository pipeline must additionally validate source contracts, lint, Development APK assembly, exact package/version/label identity, source revision, checksum evidence, and artifact publication.
 
-## 28. Testing and Build Evidence
+## 27. Accepted Main Evidence
 
-The repository validation path must cover source contracts, Android unit tests, lint, development APK assembly, package/version/label identity, exact source revision, checksum evidence, and artifact publication.
+Accepted main commit `19737c11c59a30a94ee8b6dad8855b449c011eca` passed exact-main run `33420873144` for the prior `0.1.0-dev` state.
 
-The first merged Android foundation at main commit `331e97507a7b3b7ca3d930771915f1026bf2d4a8` passed exact-main GitHub Actions run `33418751538`.
-
-Validated development artifact evidence for that baseline:
+Accepted-main evidence:
 
 - Package: `com.goreecloud.index.dev`
 - Version: `0.1.0-dev`
 - Version code: `1`
-- Label: `GoreeCloud Index Dev`
-- APK SHA-256: `8fee493995d500cd09579e15fe17915b7800117463f68fbc85f18cfd24b0ea3f`
-- Artifact ID: `9768208441`
+- APK SHA-256: `a867073c433941297da985a1c8ec3e3972e7ecd6db4883f18e935a8d6fd72f83`
+- Artifact ID: `9768893227`
 
-Later revisions require their own exact-candidate validation.
+The `0.2.0-dev` branch must produce independent exact-candidate evidence before merge.
 
-## 29. Current Implementation State
+## 28. Current Limitations
 
-Current source implements:
+Not implemented or accepted:
 
-- Android/Compose application foundation.
-- Production/development application identity.
-- Launcher→Index search-entry contract.
-- Provider-neutral query/result/type/action/provider issue/search snapshot model.
-- Query engine with bounded results, failure isolation, issue reporting, deterministic ranking, and provider-scoped deduplication.
-- Android launcher-applications provider using scoped visibility and exact component identity.
-- API 33+ package-manager query path with compatibility fallback.
-- Source-aware search UI with safe insets and browse/no-match/degraded/result states.
-- User-visible application-launch failure feedback.
-- Unit tests and CI/build evidence path.
+- files/folders, contacts, calendar, media, settings, connected-device, GoreeCloud Search, Mesh-discovered first-party, extension, or third-party providers;
+- local metadata/content index;
+- incremental/streaming result delivery;
+- provider capability/health negotiation;
+- Privacy Shield user/provider settings center;
+- accepted Privacy Shield, Wardveil Security, Everkeep, Identity, or Mesh runtime integration;
+- formal Glaze UI 2.1.0 application-specific consumer conformance;
+- representative-device/Launcher/provider/accessibility/performance acceptance;
+- controlled production signing, release, deployment, production acceptance, or Stable qualification.
 
-Not currently implemented or accepted:
+## 29. Next Development Sequence
 
-- Files/folders, contacts, calendar, media, settings, connected-device, GoreeCloud Search, first-party Mesh-discovered, extension, or third-party providers.
-- Local metadata/content index.
-- Asynchronous provider runtime, cancellation, and provider timeouts.
-- Search history, saved search, provider settings, or permission center.
-- Accepted Privacy Shield, Wardveil Security, Everkeep, Identity, or Mesh runtime integration.
-- Formal Glaze UI 2.1.0 consumer conformance.
-- Representative-device/Launcher/provider/accessibility/performance acceptance.
-- Controlled production signing, release, deployment, production acceptance, or Stable qualification.
+After this asynchronous runtime passes exact-candidate validation and merges:
+
+1. Reconcile accepted-main source/build evidence and canonical project/changelog records.
+2. Select one second provider with a clear authoritative source and permission model.
+3. Define and integrate the approved Privacy Shield/Identity decision path required by that provider before dispatch.
+4. Validate provider cancellation, timeout, provenance, result actions, and failure behavior end to end.
+5. Add incremental result delivery only after snapshot semantics and UI accessibility remain coherent under multiple providers.
+6. Continue provider expansion one authority boundary at a time.
 
 ## 30. Production and Stable Gates
 
-Index must not be represented as production-ready or Stable until the exact release revision has evidence for all applicable gates, including:
-
-- Successful source/build validation.
-- Supported local-search behavior on representative devices.
-- Provider permission/isolation behavior.
-- Glaze UI 2.1.0 consumer conformance.
-- Accepted Privacy Shield, Wardveil Security, Everkeep, Identity, and Mesh integration where applicable.
-- Third-party security/privacy review if third-party providers are included.
-- Accessibility validation.
-- Representative performance/resource-use validation.
-- Controlled packaging, signing, deployment, rollback, and release documentation.
-- README, SPECIFICATIONS, FEATURES, CAPABILITIES, BENEFITS, COMPETITIVE-OBJECTIVES, architecture, conformance, user manual, project specification, and canonical changelog reconciled to release state.
-
-## 31. Next Development Sequence
-
-1. Validate and merge the current foundation hardening against exact candidate source.
-2. Perform representative Android and Launcher→Index device checks without converting source/build evidence into device acceptance prematurely.
-3. Replace synchronous provider execution with asynchronous execution, superseded-query cancellation, and bounded provider timeouts.
-4. Add explicit authorization context and provider capability declaration.
-5. Add permission-aware file, contact, and calendar providers one at a time as platform APIs and authority contracts permit.
-6. Integrate Privacy Shield, Wardveil Security, GoreeCloud Identity, GoreeCloud Mesh, and Everkeep through approved runtime contracts.
-7. Add GoreeCloud Search as the explicit Internet provider.
-8. Add extension and optional third-party providers only after isolation, authorization, trust, revocation, privacy, and lifecycle controls are accepted.
-9. Complete Glaze UI 2.1.0 conformance, accessibility, performance, platform acceptance, release engineering, and production gates.
+GoreeCloud Index must not be represented as production-ready or Stable until the exact release revision has evidence for all applicable gates, including source/build validation, supported local-search behavior on representative devices, provider permission/isolation behavior, current Stable Glaze UI conformance, accepted Privacy Shield/Wardveil/Everkeep/Identity/Mesh integration where applicable, third-party review if included, accessibility, representative performance/resource use, controlled packaging/signing/deployment/rollback, and reconciled repository/project/changelog documentation.
