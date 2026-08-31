@@ -1,31 +1,38 @@
 # GoreeCloud Index — Benefits
 
-## Current Verified Benefits
+## Current Evidence-Bound Benefits
 
-GoreeCloud Index is not yet a working search product, so **no end-user runtime search benefit is currently claimed**.
+The current native Android foundation provides concrete development and early user-facing value without implying production acceptance:
 
-The present repository foundation provides development and governance benefits only:
+- GoreeCloud Index is now a real original native application/search foundation rather than documentation alone.
+- The first vertical slice works from query intake through a real on-device applications provider, deterministic ranking, result presentation, and exact-component launch handoff.
+- GoreeCloud Launcher has an explicit first-party search-entry contract instead of duplicating universal-search authority.
+- Android package visibility is limited to launcher-discoverable applications instead of unrestricted package enumeration.
+- The current slice requests no Internet permission and adds no intentional remote query telemetry, keeping its first provider local-only.
+- Provider failure is isolated and surfaced separately from successful results, so an unavailable provider is not misrepresented as a legitimate empty result.
+- Provider-scoped identities preserve provenance and reduce ambiguity as additional sources are introduced.
+- Explicit source labeling tells the user that current results come from **Applications · On-device**.
+- Safe-drawing insets, bounded interaction sizes, semantic headings, and distinct search states improve the accessibility and reliability foundation before wider provider expansion.
+- Exact-source CI produces repeatable source/build evidence instead of relying on undocumented local builds.
 
-- Product scope is documented before implementation begins.
-- GoreeCloud Index is clearly separated from GoreeCloud Search so local/universal discovery and Internet search do not become conflicting authorities.
-- Planned application, file, contact, calendar, extension, third-party, and Internet search sources have explicit permission and provider boundaries.
-- Mandatory GoreeCloud platform integration requirements are documented before implementation can be represented as complete.
-- Current-state documentation prevents planned features from being presented as already available.
-- The project is version controlled and licensed under GNU Affero General Public License v3.0.
+## Validated Build Value
+
+The first merged foundation at commit `331e97507a7b3b7ca3d930771915f1026bf2d4a8` passed exact-main run `33418751538`, proving that its repository contract, unit tests, lint, debug APK assembly, APK identity checks, checksum capture, and artifact publication succeeded. This is source/build evidence only; it does not establish representative-device or production acceptance.
 
 ## Benefits Not Yet Claimable
 
-The following are intended product outcomes, but they must **not** be represented as current benefits until the supporting features are implemented and validated:
+The following remain intended outcomes until their supporting providers and acceptance evidence exist:
 
-- Finding applications, files, contacts, calendar events, and other authorized resources from one search surface.
-- Fast local discovery that can continue to work without Internet access for local providers.
-- Optional Internet results without forcing local search data into a remote search path.
-- Optional third-party service search with explicit connection, scoped permissions, and revocation.
-- Consistent source labels and result actions across heterogeneous providers.
-- Reduced duplication of global-search logic across GoreeCloud applications.
-- Privacy-minimized indexing and transparent local-versus-remote processing.
-- Provider isolation so one faulty or unavailable source does not break all search results.
-- Cross-device discovery through authorized GoreeCloud providers.
-- Accessible, responsive universal search through the applicable Stable Glaze UI contract.
+- Finding files, contacts, calendar events, media, settings, and other authorized resources from the same search experience.
+- Incremental multi-provider results with cancellation and bounded timeouts.
+- Optional Internet results through GoreeCloud Search without forcing unrelated local resource data into a remote path.
+- Optional third-party search with explicit connection, scoped authorization, transparent processing location, and revocation.
+- First-party GoreeCloud provider discovery and coordination through GoreeCloud Mesh.
+- Cross-device search through authorized GoreeCloud providers.
+- Privacy Shield-governed provider controls, query retention, and remote-processing decisions.
+- Wardveil-backed trust/security evidence for extension, third-party, and sensitive result actions.
+- Everkeep-backed recovery of durable Index configuration where appropriate.
+- Complete Glaze UI 2.1.0 consumer conformance and accepted accessibility across supported form factors.
+- Production-signed, deployed, representative-device-validated GoreeCloud Index releases.
 
-These outcomes become eligible for the Current Verified Benefits section only when corresponding implementation and validation evidence exists.
+These outcomes become current benefits only when corresponding implementation and validation evidence exists.

@@ -3,6 +3,7 @@ package com.goreecloud.index
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -50,7 +51,15 @@ class MainActivity : ComponentActivity() {
                     .addCategory(Intent.CATEGORY_LAUNCHER)
                     .setComponent(ComponentName(action.packageName, action.className))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
                 runCatching { startActivity(launchIntent) }
+                    .onFailure {
+                        Toast.makeText(
+                            this,
+                            "Unable to open this application.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
             }
             null -> Unit
         }
