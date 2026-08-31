@@ -66,8 +66,8 @@ for expected in [
     "supervisorScope",
     "async(providerDispatcher)",
     "withTimeout",
-    "TimeoutCancellationException",
-    "CancellationException",
+    "catch (_: TimeoutCancellationException)",
+    "catch (cancellation: CancellationException)",
     "throw cancellation",
     "IndexProviderIssueKind.TIMED_OUT",
     "IndexProviderIssueKind.FAILED",
@@ -77,9 +77,9 @@ for expected in [
     if expected not in core:
         raise SystemExit(f"Missing async query/provider resilience contract: {expected}")
 
-if core.index("sortedWith(ranking)") > core.index("distinctBy"):
+if core.index("sortedWith(ranking)") > core.index(".distinctBy { result ->"):
     raise SystemExit("Ranking must occur before provider-scoped deduplication")
-if core.index("TimeoutCancellationException") > core.index("catch (cancellation: CancellationException)"):
+if core.index("catch (_: TimeoutCancellationException)") > core.index("catch (cancellation: CancellationException)"):
     raise SystemExit("Timeout handling must occur before general cancellation propagation")
 
 provider = (ROOT / "app/src/main/java/com/goreecloud/index/provider/apps/InstalledAppsProvider.kt").read_text(encoding="utf-8")
@@ -144,7 +144,7 @@ for expected in [
     "0.2.0-dev",
     "asynchronous provider-runtime",
     "IndexExecutionContext",
-    "not a claim of accepted Privacy Shield",
+    "is **not** a claim of accepted Privacy Shield",
     "Glaze UI 2.1.0",
     "Launcher→Index",
     "Wardveil Security",
@@ -153,6 +153,15 @@ for expected in [
 ]:
     if expected not in readme:
         raise SystemExit(f"README missing required current-state boundary: {expected}")
+
+for prohibited_positive_claim in [
+    "Privacy Shield integration is accepted",
+    "Wardveil Security integration is accepted",
+    "GoreeCloud Identity integration is accepted",
+    "production accepted and Stable",
+]:
+    if prohibited_positive_claim.lower() in readme.lower():
+        raise SystemExit(f"README contains unsupported positive integration/release claim: {prohibited_positive_claim}")
 
 for stale_claim in [
     "Pre-implementation / specification phase",
@@ -207,7 +216,7 @@ for expected in [
     "Asynchronous Query Runtime",
     "Superseded-Query Cancellation",
     "Execution Eligibility and Authorization Boundary",
-    "not constitute accepted Privacy Shield",
+    "does **not** constitute accepted Privacy Shield",
     "0.2.0-dev",
 ]:
     if expected not in specifications:
