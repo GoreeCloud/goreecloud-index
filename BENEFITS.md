@@ -2,56 +2,54 @@
 
 ## Current Evidence-Bound Benefits
 
-**Release lifecycle: Development.** The current native Android source provides concrete development value and a bounded early user-facing application-search experience without implying production acceptance.
+**Release lifecycle: Development.** Current accepted source/build evidence supports the following bounded benefits without implying production acceptance:
 
-Current benefits include:
+- A real original GoreeCloud-owned native Android search foundation.
+- End-to-end application search from query intake through a real on-device provider, deterministic ranking, source-aware presentation, and exact-component launch handoff.
+- An explicit Launcher→Index search-entry contract instead of duplicating universal-search authority in Launcher.
+- Narrow launcher-application visibility rather than unrestricted package enumeration.
+- No Android Internet permission, intentional remote query telemetry, or persistent search-history store in the current local-only provider slice.
+- Structured concurrent provider execution so one ordinary provider failure does not cancel healthy siblings.
+- Superseded-query cancellation so obsolete provider work can stop promptly.
+- Bounded provider timeouts with timeout state distinct from ordinary failure.
+- External cancellation preserved as cancellation rather than misreported as provider failure.
+- Fail-closed provider eligibility that blocks unlisted providers and remote/mixed providers through the current local-only path.
+- Ranking before provider-scoped deduplication, retaining the strongest-ranked duplicate representation.
+- Visible **Applications · On-device** provenance.
+- Safe-drawing, bounded interaction sizing, semantic headings, and explicit search/degraded states as an accessibility foundation.
+- Exact-source CI and artifact evidence instead of undocumented local builds.
 
-- GoreeCloud Index is a real original native application/search foundation rather than documentation alone.
-- The current vertical slice works from query intake through a real on-device applications provider, deterministic ranking, source-aware presentation, and exact-component launch handoff.
-- GoreeCloud Launcher has an explicit first-party search-entry contract instead of duplicating universal-search authority.
-- Android package visibility is limited to launcher-discoverable applications instead of unrestricted package enumeration.
-- The current slice requests no Internet permission and adds no intentional remote query telemetry, keeping its implemented provider local-only.
-- Provider work now has a structured-concurrency foundation so multiple eligible providers can execute concurrently without one ordinary failure cancelling healthy siblings.
-- Superseded queries can cancel their complete provider coroutine tree instead of allowing obsolete work to continue silently.
-- Provider timeouts are bounded and represented separately from ordinary provider failures.
-- External cancellation remains cancellation rather than being falsely reported as a provider error.
-- A fail-closed execution context can prevent non-listed providers and remote/mixed providers from being dispatched through the current local-only path.
-- Provider failure or timeout is surfaced separately from successful results, so an unavailable provider is not misrepresented as a legitimate empty result.
-- Ranking occurs before provider-scoped deduplication, retaining the strongest-ranked representation for a duplicate provider/resource identity.
-- Provider-scoped identities preserve provenance as additional sources are introduced.
-- Explicit source labeling tells the user that current results come from **Applications · On-device**.
-- Safe-drawing insets, bounded interaction sizes, semantic headings, and distinct search states improve the accessibility/reliability foundation before wider provider expansion.
-- Exact-source CI produces repeatable source/build evidence instead of relying on undocumented local builds.
-
-These are Development benefits. `IndexExecutionContext` is an internal provider-eligibility guard and must not be described as accepted Privacy Shield or GoreeCloud Identity authorization.
+`IndexExecutionContext` is internal provider eligibility and must not be described as accepted Privacy Shield or GoreeCloud Identity authorization.
 
 ## Accepted Main Build Value
 
-The accepted main baseline at commit `19737c11c59a30a94ee8b6dad8855b449c011eca` passed exact-main run `33420873144`, proving that its repository contract, unit tests, lint, Development APK assembly, APK identity checks, checksum capture, and artifact publication succeeded.
+Authoritative main `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` passed exact-main run `33429792389` after pull request #4 exact-candidate run `33429486374` succeeded.
 
-Accepted-main Development APK SHA-256: `a867073c433941297da985a1c8ec3e3972e7ecd6db4883f18e935a8d6fd72f83`.
+Accepted-main Development APK SHA-256: `a2605bb1e993dd027afc68b0900b60f2fcf9567ec59399e5a02a178af1cc815f`.
 
-Accepted-main artifact ID: `9768893227`.
+Accepted-main artifact: `9772201920`.
 
-The asynchronous `0.2.0-dev` runtime on this branch is newer than that baseline and requires its own exact-candidate validation and merge acceptance. Source presence alone is not accepted build evidence.
+Artifact digest: `sha256:0aa9c334b980f558fa983ef059f4fc7a73cf57fdf8c82d39ca2414ec60c77b75`.
+
+This proves Development source/build repeatability only; it does not establish representative-device or production acceptance.
 
 ## Benefits Not Yet Claimable
 
-The following remain intended outcomes until their supporting providers and acceptance evidence exist:
+The following remain intended outcomes until supporting implementation and acceptance evidence exists:
 
-- Finding files, contacts, calendar events, media, settings, and other authorized resources from the same search experience.
+- Finding files, contacts, calendar events, media, settings, and other authorized resources in one search experience.
 - Incremental/streaming multi-provider results.
-- Privacy-authorized user-facing local-only and provider controls.
-- Optional Internet results through GoreeCloud Search without forcing unrelated local resource data into a remote path.
-- Optional third-party search with explicit connection, scoped authorization, transparent processing location, and revocation.
-- First-party GoreeCloud provider discovery and coordination through GoreeCloud Mesh.
-- Cross-device search through authorized GoreeCloud providers.
-- Privacy Shield-governed provider controls, query retention, and remote-processing decisions.
+- Privacy-authorized user-facing local-only/provider controls.
+- Optional Internet results through GoreeCloud Search without unrelated local-data upload.
+- Optional third-party search with explicit connection, scoped authorization, processing-location transparency, and revocation.
+- First-party provider discovery through GoreeCloud Mesh.
+- Cross-device search through authorized providers.
+- Privacy Shield-governed provider/retention/remote-processing decisions.
 - GoreeCloud Identity-backed user/profile/caller/provider authorization.
-- Wardveil-backed trust/security evidence for extension, third-party, and sensitive result actions.
-- Everkeep-backed recovery of durable Index configuration where appropriate.
-- Complete Glaze UI 2.1.0 consumer conformance and accepted accessibility across supported form factors.
-- Representative-device performance evidence and accepted provider timeout targets.
-- Production-signed, deployed, representative-device-validated GoreeCloud Index releases.
+- Wardveil-backed trust/security evidence.
+- Everkeep-backed continuity for durable Index configuration where appropriate.
+- Complete Glaze UI 2.1.0 conformance and accepted accessibility.
+- Representative-device performance and accepted timeout targets.
+- Production-signed, deployed, representative-device-validated releases.
 
-These outcomes become current benefits only when corresponding implementation and validation evidence exists.
+These become current benefits only when corresponding evidence exists.
