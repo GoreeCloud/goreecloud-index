@@ -2,105 +2,79 @@
 
 ## Current Development Scope
 
-**Release lifecycle: Development.** GoreeCloud Index is **not Stable or production accepted**. The current Android application implements one bounded search provider: launcher-visible applications on the current Android device.
-
-The `0.2.0-dev` branch adds an asynchronous provider-runtime foundation, cancellation, provider timeouts, and local-only provider eligibility. Those changes require exact-candidate CI and merge acceptance before they become accepted-main evidence.
+**Release lifecycle: Development.** GoreeCloud Index is **not Stable or production accepted**. The current accepted Android `0.2.0-dev` application implements one bounded provider: launcher-visible applications on the current Android device, backed by the accepted asynchronous provider-runtime foundation.
 
 Files, contacts, calendar, GoreeCloud service content, connected devices, extensions, optional third-party services, and Internet results are not available providers yet.
 
 ## Opening Index
 
-Open **GoreeCloud Index Dev** from the Android launcher. GoreeCloud Launcher may also invoke Index through the first-party search-entry action `com.goreecloud.index.action.SEARCH` and may include an initial query in `com.goreecloud.index.extra.QUERY`.
+Open **GoreeCloud Index Dev** from the Android launcher. GoreeCloud Launcher may also invoke Index through `com.goreecloud.index.action.SEARCH` and optionally pass `com.goreecloud.index.extra.QUERY`.
 
-The Launcher→Index contract exists in accepted source/build; integrated representative-device acceptance remains pending.
+Representative-device Launcher→Index acceptance remains pending.
 
-## Browsing Applications
+## Browsing and Searching Applications
 
-When the search field is blank, Index presents a bounded list of launcher-visible applications returned by the current Applications provider.
+When the search field is blank, Index presents a bounded list of launcher-visible applications from **Applications · On-device**.
 
-The provider card identifies active coverage as **Applications · On-device**.
-
-## Searching Applications
+To search:
 
 1. Open GoreeCloud Index Dev.
 2. Enter part or all of an application name in **Search applications**.
-3. Index may briefly show **Searching applications…** while the current query is running.
-4. Matching launcher applications appear under **Application results**.
-5. Each result shows the application label, package identity, and on-device source label.
-6. Tap a result to ask Android to launch the exact launcher component represented by that result.
+3. Index may briefly show **Searching applications…**.
+4. Matching applications appear under **Application results**.
+5. Tap a result to ask Android to launch the exact launcher component represented by that result.
 
-Matching currently considers exact application names, title prefixes, word prefixes, title containment, exact package names, package prefixes, and package containment.
+Matching includes exact application names, title prefixes, word prefixes, title containment, package-name exact/prefix/containment matching, and deterministic ranking.
 
-When the query changes, the previous in-flight search is cancelled before the new query proceeds. This prevents superseded provider work from continuing as if it were still relevant.
+When the query changes, the previous in-flight search is cancelled before the new query proceeds.
 
 ## Search States
 
-Index distinguishes the following current source states:
+- **Searching:** current query executing.
+- **Browse:** blank query with available launcher applications.
+- **No searchable applications:** provider returned no current launcher entries.
+- **No application matches:** provider completed successfully but found no match.
+- **Provider temporarily unavailable:** provider failed; failure is isolated from healthy results.
+- **Provider took too long:** provider exceeded its timeout; Index can preserve healthy sibling results.
+- **Launch failure:** Android could not open the selected component.
 
-- **Searching:** the current query is still executing.
-- **Browse state:** blank query with available launcher applications.
-- **No searchable applications:** the provider returned no launcher entries for the current bounded view.
-- **No application matches:** the provider completed successfully but found no match for the entered query.
-- **Provider temporarily unavailable:** a provider failed; Index isolates the failure instead of pretending the provider successfully returned nothing.
-- **Provider took too long:** a provider exceeded its bounded timeout; Index stops waiting for that provider and can preserve healthy-provider results.
-- **Launch failure:** Android could not open the selected launcher component; Index shows a short failure notification.
-
-A provider failure or timeout does not automatically become a remote fallback.
+Failure or timeout does not silently activate remote fallback.
 
 ## Local-Only Execution Boundary
 
-The current MainActivity supplies an internal execution context that explicitly allows the Applications provider and sets `localOnly=true`.
+Current MainActivity explicitly allows the Applications provider and sets `localOnly=true`. A future remote or mixed provider would not be dispatched through that path merely because it was registered.
 
-This means a future provider that declares remote or mixed processing would not be dispatched through the current path merely because it was registered. This is an engineering fail-closed guard, not a user-facing Privacy Shield policy and not accepted GoreeCloud Identity authorization.
+This is an internal fail-closed guard, not accepted Privacy Shield policy and not accepted GoreeCloud Identity authorization.
 
 ## Provider Timeout
 
-The current Applications provider declares a provisional 500 ms timeout. The engine also caps provider timeout declarations to a global five-second safety ceiling.
+The Applications provider declares a provisional 500 ms timeout. The engine caps provider timeout declarations at a five-second Development safety ceiling.
 
-These are Development safety bounds. They are not accepted latency targets, guarantees, or representative-device performance results. Values may change after device testing.
+These values are not representative-device performance guarantees and may change after testing.
 
-## Privacy in This Development Slice
+## Privacy and Security
 
-The current Android applications provider operates locally. The application manifest does not request Android `INTERNET` permission or unrestricted `QUERY_ALL_PACKAGES` visibility.
+The Applications provider operates locally. The application requests neither Android `INTERNET` nor unrestricted `QUERY_ALL_PACKAGES` permission and intentionally adds no query analytics, remote telemetry, or persistent search-history store.
 
-This slice does not intentionally add query analytics, remote telemetry, or a persistent search-history store.
+These source properties do not establish accepted Privacy Shield runtime integration.
 
-These source properties do **not** mean Privacy Shield runtime integration has been accepted. Future private-content or remote providers require explicit applicable privacy authorization and retention decisions.
-
-## Security Boundary
-
-Application results are typed to exact Android launcher components. Index does not claim that an application or provider is trusted, protected, clean, or Wardveil-approved merely because it appears in search.
-
-Wardveil Security runtime evidence remains pending.
+Application results are typed to exact launcher components. Index does not claim that an application/provider is trusted, protected, clean, or Wardveil-approved merely because it appears in search. Wardveil runtime evidence remains pending.
 
 ## Known Limitations
 
-The current development source does not yet provide:
+The current Development build does not provide file/folder, contact, calendar, media, settings, Search Internet, Mesh-discovered first-party, extension, or third-party providers; local content indexing; incremental/streaming result delivery; provider health/capability negotiation; saved search/history/provider settings; accepted Privacy Shield/Wardveil/Everkeep/Identity/Mesh integrations; formal Glaze UI 2.1.0 conformance; representative-device accessibility/performance acceptance; production signing/deployment; or Stable qualification.
 
-- File/folder search.
-- Contact search.
-- Calendar search.
-- Media or settings providers.
-- GoreeCloud Search Internet results.
-- Mesh-discovered first-party GoreeCloud providers.
-- Extension or third-party providers.
-- Local content indexing.
-- Incremental/streaming multi-provider result delivery.
-- Provider capability/health negotiation.
-- Search history, saved searches, or a provider-settings center.
-- Accepted Privacy Shield, Wardveil Security, Everkeep, Identity, or Mesh runtime integration.
-- Formal Glaze UI 2.1.0 consumer conformance.
-- Representative-device, Launcher integration, accessibility, performance, production-signing, deployment, or Stable acceptance.
-
-## Development Package
-
-Current branch identity:
+## Development Package and Validation
 
 - Application ID: `com.goreecloud.index.dev`
 - Label: `GoreeCloud Index Dev`
 - Version: `0.2.0-dev`
 - Version code: `2`
 
-The accepted main baseline before this branch is commit `19737c11c59a30a94ee8b6dad8855b449c011eca`, which passed exact-main GitHub Actions run `33420873144`. Its accepted Development APK SHA-256 is `a867073c433941297da985a1c8ec3e3972e7ecd6db4883f18e935a8d6fd72f83`, artifact ID `9768893227`.
+Authoritative main commit `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` passed exact-main workflow run `33429792389` after PR #4 candidate `d8b563705ccf1d05444df18e7a593a454d4c4103` passed run `33429486374`.
 
-The `0.2.0-dev` branch requires its own exact-candidate validation before its build can be represented as accepted.
+Accepted-main APK SHA-256: `a2605bb1e993dd027afc68b0900b60f2fcf9567ec59399e5a02a178af1cc815f`.
+
+Accepted-main artifact: `9772201920`.
+
+This is Development source/build evidence only.
