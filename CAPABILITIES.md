@@ -2,93 +2,108 @@
 
 ## Overview
 
-GoreeCloud Index is currently in the pre-implementation / specification phase. This file records only **verified current capability** and therefore does not treat the planned search functions in `SPECIFICATIONS.md` or `FEATURES.md` as implemented.
+GoreeCloud Index is in active development. This file records current source capability separately from device, integration, production, and Stable acceptance.
 
-## Core Capabilities
+## Current Source Capabilities
 
-No end-user search capability is currently implemented or validated.
+The repository now contains an original native Android search foundation with:
 
-## User Capabilities
+- Kotlin and Jetpack Compose application source.
+- Typed query, provider, result, action, and provider-issue models.
+- A provider-oriented `SearchEngine` that suppresses blank queries, isolates provider failures, ranks results, and deduplicates provider-scoped identities.
+- A real Android launcher-application provider using the operating system's launcher activity registry.
+- Application-label and package-name matching.
+- Typed handoff to Android for application launch.
+- A native search UI with source labeling and blank, no-result, provider-failure, result, and launch-failure states.
+- Unit tests for search-engine invariants.
+- Repository validation and Android CI/build definitions.
 
-None currently verified.
+These are source implementation claims. Representative-device and production acceptance remain pending.
 
-## Administrative Capabilities
+## User Capability Boundary
 
-None currently verified at runtime.
+The current development build is intended to let a user search launcher-visible applications on the current Android device and open a selected result through Android.
+
+This behavior must still be validated on representative devices before it is treated as accepted device capability. No file, contact, calendar, Internet, extension, or third-party search capability is currently implemented.
+
+## Provider and Data Boundary
+
+The current provider:
+
+- Uses `ACTION_MAIN` plus `CATEGORY_LAUNCHER` discovery.
+- Does not request unrestricted `QUERY_ALL_PACKAGES` visibility.
+- Declares local processing.
+- Does not intentionally transmit queries or application inventory.
+- Does not persist search history in this slice.
+- Preserves Android/package ownership of application identity and launch behavior.
+
+No local content index, file-content store, provider database, extension registry, or third-party connector is implemented yet.
 
 ## Platform Integrations
 
-No runtime integration is currently verified for:
+The current source targets Glaze UI 2.1.0 design semantics, but formal consumer conformance has not been accepted.
+
+No accepted runtime integration is currently claimed for:
 
 - Privacy Shield.
 - Wardveil Security.
 - Everkeep.
-- Glaze UI consumer conformance.
 - GoreeCloud Mesh.
 - GoreeCloud Identity.
 - GoreeCloud Search.
 
-The repository documents these as mandatory or approved integration requirements only.
-
-## Data and Interoperability
-
-No local index format, provider API, extension API, third-party connector, or interoperability runtime is currently implemented or validated.
-
-## Supported Platforms
-
-No GoreeCloud Index runtime platform is currently supported or production accepted.
-
-Phone, tablet, laptop, and desktop support are target product directions and must not be represented as current support until platform-specific implementation and acceptance exist.
+The repository documents the required authority boundaries and pending integration work without treating those boundaries as completed runtime integration.
 
 ## Security and Privacy
 
-There is no runtime security or privacy implementation to validate yet. The current documentation establishes required authority boundaries, including least-privilege provider access, explicit opt-in for third-party services, local-versus-remote processing transparency, Privacy Shield governance, and Wardveil trust/security requirements.
+Current source behavior minimizes Android package visibility to launcher applications and adds no intentional remote query path, analytics, or telemetry. Search-engine provider failures are converted into sanitized provider-unavailable states instead of exposing exception details to the user.
 
-These requirements do not constitute runtime enforcement.
+This does not establish accepted Privacy Shield or Wardveil runtime enforcement.
 
-## Resilience and Recovery
+## Resilience
 
-No runtime query resilience, provider isolation, index rebuild, backup, or recovery behavior is currently implemented or validated.
+The current `SearchEngine` isolates provider exceptions so one failing provider does not suppress healthy provider results. Unit tests cover this invariant together with blank-query suppression, ranking, and provider-scoped deduplication.
 
-## Accessibility
+Timeouts, asynchronous cancellation, index recovery, cross-device resilience, and remote-provider retry policy remain pending.
 
-No user-facing Index interface currently exists, so no accessibility conformance is claimed.
+## Accessibility and UI
 
-## Automation and API
+The current Compose source includes semantic headings, descriptive action labels, minimum interaction sizing for primary controls, source labeling, and explicit blank/no-result/error states.
 
-No provider API, extension API, public API, or automation interface is currently implemented or stable.
+Formal accessibility acceptance, reduced-motion behavior, reduced-transparency behavior, contrast modes, large-text/reflow validation, and representative phone/tablet visual acceptance remain pending.
 
-## Repository Capabilities
+## Build and Validation Capability
 
-The repository currently provides the following verified development foundation:
+The repository includes a GitHub Actions workflow intended to:
 
-- A current README that states product scope and lifecycle status.
-- A repository-level implementation specification.
-- A feature inventory that separates current and planned functionality.
-- This current-capability record.
-- A benefits record that avoids unsupported end-user claims.
-- Competitive objectives for continued product development.
-- GNU Affero General Public License v3.0 licensing.
+- Check out the exact candidate revision.
+- Record the exact source SHA.
+- Run repository-contract validation.
+- Use JDK 17 and Gradle 9.5.0.
+- Run Android unit tests.
+- Run Android lint.
+- Assemble the development APK.
+- Verify development package identity and label.
+- Record an APK SHA-256 checksum.
+- Publish the APK and build evidence as a short-retention workflow artifact.
+
+Until that workflow passes for an exact candidate, build validation must not be claimed.
 
 ## Current Limitations
 
-The repository does not yet contain a verified:
+Not currently implemented or accepted:
 
-- Query engine.
-- Local indexer.
-- Provider registry/runtime.
-- Application provider.
-- File provider.
-- Contacts provider.
-- Calendar provider.
+- File and folder search.
+- Contacts search.
+- Calendar search.
 - GoreeCloud Search Internet provider.
-- Extension provider implementation.
-- Third-party provider implementation.
-- Ranking or normalization engine.
-- Search user interface.
-- Runtime Privacy Shield, Wardveil, Everkeep, Identity, Mesh, or Glaze UI integration.
-- Production package or deployment.
-
-## Capability Validation
-
-Current capability validation is limited to repository inspection and documentation state. No runtime tests, build artifacts, device tests, provider tests, or production-acceptance evidence exist yet for GoreeCloud Index.
+- First-party GoreeCloud provider discovery through Mesh.
+- Extension provider runtime.
+- Third-party provider runtime.
+- Local metadata/content index.
+- Asynchronous provider execution, cancellation, and timeouts.
+- Search history or saved searches.
+- User/provider settings and permission center.
+- Runtime Privacy Shield, Wardveil, Everkeep, Identity, or Mesh integration.
+- Formal Glaze UI 2.1.0 consumer conformance.
+- Representative-device, accessibility, performance, production-signing, deployment, or Stable acceptance.
