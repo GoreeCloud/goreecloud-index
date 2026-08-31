@@ -1,0 +1,58 @@
+package com.goreecloud.index
+
+import android.content.ComponentName
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import com.goreecloud.index.core.GoreeCloudIndexContract
+import com.goreecloud.index.core.IndexAction
+import com.goreecloud.index.core.IndexQueryEngine
+import com.goreecloud.index.core.IndexResult
+import com.goreecloud.index.provider.apps.InstalledAppsProvider
+import com.goreecloud.index.ui.IndexRoot
+import com.goreecloud.index.ui.theme.GoreeCloudIndexTheme
+
+class MainActivity : ComponentActivity() {
+    private lateinit var appsProvider: InstalledAppsProvider
+    private lateinit var queryEngine: IndexQueryEngine
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        appsProvider = InstalledAppsProvider(this)
+        queryEngine = IndexQueryEngine(listOf(appsProvider))
+
+        setContent {
+            GoreeCloudIndexTheme {
+                IndexRoot(
+                    initialQuery = intent.getStringExtra(GoreeCloudIndexContract.EXTRA_QUERY).orEmpty(),
+                    onSearch = queryEngine::search,
+                    onOpenResult = ::openResult,
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::appsProvider.isInitialized) {
+            appsProvider.refresh()
+        }
+    }
+
+    private fun openResult(result: IndexResult) {
+        when (val action = result.action) {
+            is IndexAction.LaunchActivity -> {
+                val launchIntent = Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setComponent(ComponentName(action.packageName, action.className))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { startActivity(launchIntent) }
+            }
+            null -> Unit
+        }
+    }
+}
