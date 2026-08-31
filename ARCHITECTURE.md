@@ -4,6 +4,8 @@
 
 **Release lifecycle: Development.** This document describes the current source architecture on the asynchronous-provider-runtime development branch and the accepted-main evidence boundary. The accepted main baseline is `19737c11c59a30a94ee8b6dad8855b449c011eca`; the new asynchronous runtime is not accepted-main behavior until its exact candidate passes CI and is merged.
 
+This milestone implements structured concurrent provider execution, superseded-query cancellation, and bounded provider timeouts while preserving the current local-only provider authority boundary.
+
 Production acceptance and Stable qualification remain false.
 
 ## Authority Model
