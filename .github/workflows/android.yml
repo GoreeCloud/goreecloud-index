@@ -58,7 +58,7 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -n 1)"
           test -n "$AAPT"
           "$AAPT" dump badging "$APK" | tee build-evidence/app-debug.badging.txt
-          grep -Fq "package: name='com.goreecloud.index.dev' versionCode='1' versionName='0.1.0-dev'" build-evidence/app-debug.badging.txt
+          grep -Fq "package: name='com.goreecloud.index.dev' versionCode='2' versionName='0.2.0-dev'" build-evidence/app-debug.badging.txt
           grep -Fq "application-label:'GoreeCloud Index Dev'" build-evidence/app-debug.badging.txt
 
       - name: Upload development APK evidence

@@ -2,7 +2,7 @@
 
 ## Status
 
-This document defines **planned benchmark and improvement objectives**. It does not claim that GoreeCloud Index currently matches or exceeds any listed product. GoreeCloud Index is still in the pre-implementation / specification phase.
+**Release lifecycle: Development.** This document defines benchmark and improvement objectives. It does not claim that GoreeCloud Index currently matches or exceeds any listed product. Index now has a native Android application-search foundation and an asynchronous provider-runtime candidate, while broader universal-search provider coverage, representative-device acceptance, production acceptance, and Stable qualification remain future work.
 
 ## Benchmark References
 
@@ -40,7 +40,7 @@ GoreeCloud Index should reach a high-quality baseline for:
 - Touch-friendly interaction on mobile and tablet devices.
 - Contextual actions on supported results.
 - Incremental results rather than waiting for every source.
-- Graceful handling of unavailable search sources.
+- Graceful handling of unavailable or slow search sources.
 
 ## Capabilities GoreeCloud Intends to Exceed
 
@@ -51,6 +51,7 @@ Where technically justified and evidence-backed, GoreeCloud Index should exceed 
 - Make source/provider identity understandable instead of blending all results into an opaque pool.
 - Expose whether a provider operates locally, remotely, or through a mixed workflow when that distinction matters.
 - Keep provider-specific permissions and availability visible and controllable.
+- Distinguish ordinary provider failure from bounded timeout and cancellation where that distinction helps the user or operator.
 
 ### Privacy Control
 
@@ -58,12 +59,14 @@ Where technically justified and evidence-backed, GoreeCloud Index should exceed 
 - Prevent silent transmission of local search data to Internet or third-party services.
 - Give users direct controls for provider enablement, search history, index clearing, connected accounts, and revocation.
 - Minimize retained query and ranking data instead of building hidden behavioral profiles.
+- Fail closed when provider eligibility or required authorization cannot be established.
 
 ### Extensibility
 
 - Provide a documented, versioned provider model for first-party applications, GoreeCloud extensions, and optional third-party services.
 - Use capability negotiation so providers declare what they actually support.
 - Isolate provider failures and trust boundaries.
+- Use structured concurrency, prompt supersession cancellation, and bounded provider execution before remote or expensive providers are activated.
 
 ### GoreeCloud Integration
 
@@ -93,6 +96,7 @@ GoreeCloud Index should not adopt behaviors that conflict with GoreeCloud produc
 - Sending private local context to improve Internet results without explicit authority.
 - A monolithic index that takes ownership of source data instead of preserving provider authority.
 - Security badges or privacy claims that are not backed by authoritative platform state.
+- Treating internal execution eligibility as a substitute for accepted Privacy Shield or GoreeCloud Identity authorization.
 
 ## Privacy and Security Objectives
 
@@ -121,18 +125,19 @@ GoreeCloud Index should establish a stronger privacy/security baseline by requir
 - Results should be scannable without hiding important source context.
 - Phone, tablet, desktop, and large-display layouts should adapt without changing the underlying result semantics.
 - Keyboard, touch, pointer, screen-reader, text-scaling, focus, and reduced-motion behavior should be first-class acceptance requirements on applicable platforms.
-- Permission, offline, unavailable-provider, remote-processing, and partial-result states should be understandable rather than represented as generic failures.
+- Permission, offline, unavailable-provider, timed-out-provider, remote-processing, searching, and partial-result states should be understandable rather than represented as generic failures.
 
 ## Performance and Reliability Objectives
 
 - Common local searches should begin returning useful results quickly.
 - Providers should run concurrently where safe.
-- Slow providers should not block faster providers.
+- Slow providers should not block faster providers indefinitely.
 - Superseded queries should be cancelled promptly.
+- Provider timeouts should be evidence-tuned per provider and platform rather than treated as universal constants.
 - Mobile implementations should minimize idle CPU, memory, network, and battery use.
 - Local index corruption should be recoverable through rebuild rather than requiring destructive user-data recovery.
 
-Exact performance targets must be established from implementation and representative-device testing rather than guessed during the specification phase.
+Exact performance targets must be established from implementation and representative-device testing rather than guessed during Development.
 
 ## Interoperability and Administrative Objectives
 
@@ -149,20 +154,18 @@ Exact performance targets must be established from implementation and representa
 - Avoid unnecessary backup of sensitive derived index contents when rebuild is sufficient.
 - Allow removal of a provider to remove its credentials and provider-specific retained data according to policy.
 
-## GoreeCloud Differentiators
+## Current Development Differentiators
 
-The intended GoreeCloud differentiation is the combination of:
+The current source already establishes several bounded architectural differentiators without claiming product-wide completion:
 
-- Local-first universal search.
-- Explicit provider architecture.
-- Optional third-party integration rather than mandatory external dependency.
-- GoreeCloud Search delegation for the Internet layer.
-- Privacy Shield-governed data use.
-- Wardveil-governed trust/security decisions.
-- GoreeCloud Identity-scoped identity and authorization.
-- GoreeCloud Mesh-based first-party capability discovery.
-- Everkeep-aware continuity boundaries.
-- Glaze UI-consistent presentation across supported device classes.
-- Original GoreeCloud-owned native implementation.
+- A local-only first provider with narrowly scoped Android visibility.
+- Explicit provider identity and processing-location declaration.
+- Structured concurrent provider dispatch in the `0.2.0-dev` candidate.
+- Superseded-query cancellation and bounded provider timeout handling in the candidate.
+- Failure and timeout issue states separate from healthy results.
+- Fail-closed provider eligibility through `IndexExecutionContext` while keeping Privacy Shield/Identity acceptance explicitly separate.
+- GoreeCloud Search retained as a distinct Internet-search authority.
 
-These are competitive objectives until implementation and validation evidence permits them to be documented as current capabilities or verified benefits.
+The broader intended GoreeCloud differentiation remains the combination of local-first universal search, explicit provider architecture, optional third-party integration, GoreeCloud Search delegation, Privacy Shield-governed data use, Wardveil-governed trust/security decisions, Identity-scoped authorization, Mesh-based first-party capability discovery, Everkeep-aware continuity boundaries, Glaze UI-consistent presentation, and original GoreeCloud-owned native implementation.
+
+Those broader elements remain competitive objectives until implementation and validation evidence permits them to be documented as current capabilities or verified benefits.

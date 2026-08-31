@@ -2,7 +2,9 @@
 
 ## Overview
 
-GoreeCloud Index is in active development. This record describes verified source/build capability separately from representative-device, platform-integration, production, and Stable acceptance.
+**Release lifecycle: Development.** GoreeCloud Index is in active implementation. This record describes current source capability separately from accepted-main build evidence, representative-device behavior, platform-integration acceptance, production acceptance, and Stable qualification.
+
+The accepted main baseline before this branch is `19737c11c59a30a94ee8b6dad8855b449c011eca`. The asynchronous-provider-runtime source described here requires exact-candidate CI and merge acceptance before it becomes accepted-main evidence.
 
 ## Current Source Capabilities
 
@@ -10,43 +12,81 @@ The repository contains an original native Android search foundation with:
 
 - Kotlin and Jetpack Compose application source.
 - Provider-neutral query/result/type/action contracts.
-- A query engine that bounds result counts, ranks deterministically, deduplicates provider-scoped identity, isolates provider exceptions, and reports sanitized provider issues independently of successful results.
+- Suspendable provider operations.
+- Provider processing-location and timeout declarations.
+- A fail-closed execution context that lists eligible providers and can prohibit remote/mixed dispatch.
+- Structured concurrent provider execution under `supervisorScope`.
+- Per-provider `withTimeout` enforcement with a global timeout ceiling.
+- Explicit `FAILED` and `TIMED_OUT` provider issue kinds.
+- External cancellation propagation instead of cancellation-to-error conversion.
+- Deterministic ranking followed by provider-scoped deduplication.
+- Bounded result counts.
 - A real launcher-visible Android applications provider.
 - Application label/package search and exact component launch handoff.
 - Launcher→Index search invocation contract with optional initial query.
-- A source-aware native search interface with provider coverage disclosure and degraded-state presentation.
+- A source-aware native search interface with searching, provider-failed, provider-timed-out, blank, no-match, and result states.
 - Application-launch failure feedback.
 - Unit tests, repository validation, Android lint/build, APK identity/checksum, and artifact-publication automation.
 
-## Validated Build Baseline
+## Accepted Main Build Baseline
 
-Exact main commit `331e97507a7b3b7ca3d930771915f1026bf2d4a8` passed GitHub Actions run `33418751538` after PR #1 merged. Repository validation, Android unit tests, lint, development APK assembly, package/application-label verification, checksum capture, and artifact publication succeeded.
+Exact main commit `19737c11c59a30a94ee8b6dad8855b449c011eca` passed GitHub Actions run `33420873144`. Repository validation, Android unit tests, lint, Development APK assembly, package/application-label verification, checksum capture, and artifact publication succeeded for the accepted `0.1.0-dev` baseline.
 
-Validated development identity for that baseline:
+Accepted-main evidence:
 
 - Package: `com.goreecloud.index.dev`
 - Version: `0.1.0-dev`
 - Version code: `1`
 - Label: `GoreeCloud Index Dev`
-- APK SHA-256: `8fee493995d500cd09579e15fe17915b7800117463f68fbc85f18cfd24b0ea3f`
-- Artifact ID: `9768208441`
-- Artifact name: `goreecloud-index-development-apk-331e97507a7b3b7ca3d930771915f1026bf2d4a8`
+- APK SHA-256: `a867073c433941297da985a1c8ec3e3972e7ecd6db4883f18e935a8d6fd72f83`
+- Artifact ID: `9768893227`
+- Artifact name: `goreecloud-index-development-apk-19737c11c59a30a94ee8b6dad8855b449c011eca`
 
-Any later revision requires its own exact-candidate validation before its build can be represented as accepted.
+This branch advances Development identity to `0.2.0-dev` / version code `2`. That identity is not accepted-main evidence until exact-candidate validation succeeds and the branch is merged.
+
+## Query Runtime Boundary
+
+The source can concurrently dispatch multiple eligible providers using Kotlin structured concurrency. One ordinary provider failure or provider timeout is converted into a sanitized provider issue while healthy-provider results remain available.
+
+External cancellation is explicitly rethrown. This lets the Compose `LaunchedEffect(query)` lifecycle cancel superseded searches instead of allowing obsolete provider work to continue or be misreported as failure.
+
+Each provider declares a timeout. The engine clamps that value to a five-second development safety ceiling. The current applications provider declares 500 ms. These values are engineering safety bounds, not accepted latency SLAs.
+
+## Execution Eligibility Boundary
+
+`IndexExecutionContext` currently supplies:
+
+- an exact `allowedProviderIds` set;
+- a `localOnly` flag.
+
+A provider not in the allowlist is not dispatched. A provider declaring `REMOTE` or `MIXED` processing is not dispatched while `localOnly=true`.
+
+This is a source-level fail-closed execution guard. It is **not** accepted Privacy Shield consent/permission logic and is **not** accepted GoreeCloud Identity authorization. Future platform authorities must feed or supersede this boundary through approved contracts rather than being inferred from it.
 
 ## Current User-Facing Capability Boundary
 
-The development application can browse/search launcher-visible Android applications and request Android to open the exact selected launcher component. The provider is local-only and the search screen identifies its coverage as **Applications · On-device**.
+The Development application can browse/search launcher-visible Android applications and request Android to open the exact selected launcher component. The provider is local-only and the search screen identifies coverage as **Applications · On-device**.
+
+The UI can now distinguish:
+
+- active search;
+- provider ordinary failure;
+- provider timeout;
+- no application match;
+- no browseable applications;
+- valid results;
+- application launch failure.
 
 This is not representative-device acceptance. Files, contacts, calendar, GoreeCloud service content, connected devices, extensions, third-party services, and Internet results are not currently implemented providers.
 
 ## Provider and Data Boundary
 
-The current provider:
+The current applications provider:
 
 - Uses scoped `ACTION_MAIN` plus `CATEGORY_LAUNCHER` visibility.
 - Does not request `QUERY_ALL_PACKAGES`.
 - Does not request `INTERNET` in the current local-only application-search slice.
+- Declares local processing.
 - Does not intentionally transmit queries or application inventory.
 - Does not intentionally persist search history.
 - Preserves provider and Android component identity rather than copying application authority into Index.
@@ -57,11 +97,11 @@ No local file/content index, extension registry, third-party connector, or remot
 
 The Android manifest exposes `com.goreecloud.index.action.SEARCH`, and the shared contract defines `com.goreecloud.index.extra.QUERY`. This establishes a source/build handoff contract for GoreeCloud Launcher to invoke Index with an initial query.
 
-Integrated Launcher→Index device acceptance is still pending. Launcher remains an invocation/presentation surface; Index remains the universal search authority.
+Integrated Launcher→Index representative-device acceptance is still pending. Launcher remains an invocation/presentation surface; Index remains the universal search authority.
 
 ## Platform Integrations
 
-The source targets Glaze UI 2.1.0 design semantics. Formal consumer conformance remains pending.
+The source targets Glaze UI 2.1.0 design semantics. Formal application-specific consumer conformance remains pending.
 
 No accepted runtime integration is currently claimed for:
 
@@ -74,15 +114,25 @@ No accepted runtime integration is currently claimed for:
 
 ## Privacy and Security
 
-The current Android slice minimizes package visibility, disables cleartext traffic at the application level, requests no Internet permission, and adds no intentional remote query telemetry or analytics. Provider exceptions are converted into sanitized degraded state rather than exposing exception details to the UI.
+The current Android slice minimizes package visibility, disables cleartext traffic at the application level, requests no Internet permission, and adds no intentional remote query telemetry or analytics. Provider exceptions and timeout details are reduced to sanitized issue kinds rather than exposing exception content to the UI.
 
-These source properties do not establish accepted Privacy Shield or Wardveil runtime integration.
+Local-only provider eligibility prevents accidental dispatch of a future provider declaring remote/mixed processing through the current MainActivity path. This does not establish accepted Privacy Shield or Wardveil runtime integration.
 
 ## Resilience
 
-Provider exceptions are isolated so a failure does not suppress successful results from other providers. Provider issues are returned separately from valid results so the UI can distinguish failure from a legitimate empty result.
+Current source resilience includes:
 
-Asynchronous cancellation, provider timeouts, remote retry policy, index corruption recovery, and cross-device resilience remain pending.
+- structured provider concurrency;
+- parent/supersession cancellation propagation;
+- provider-specific timeout enforcement;
+- ordinary provider failure isolation;
+- timeout isolation;
+- partial healthy results when another provider fails/times out;
+- deterministic ranking and provider-scoped deduplication;
+- exact provider allowlisting;
+- local-only dispatch gating.
+
+Incremental result streaming, remote retry policy, index corruption recovery, provider health negotiation, and cross-device resilience remain pending.
 
 ## Accessibility and UI
 
@@ -93,8 +143,9 @@ The current source includes:
 - Safe-drawing insets for edge-to-edge rendering.
 - 56 px minimum search-field height.
 - 72 px minimum result-row height and 48 px result identity surface.
-- Explicit blank/browse, no-match, provider-unavailable, and result states.
+- Explicit searching, blank/browse, no-match, provider-failed, provider-timed-out, and result states.
 - Clear current provider coverage text.
+- No required animated progress indicator.
 
 Formal screen-reader, keyboard, large-text/reflow, reduced-motion, reduced-transparency, increased-contrast/forced-colors, and representative phone/tablet acceptance remain pending.
 
@@ -110,7 +161,8 @@ Not implemented or accepted:
 - Extension provider runtime.
 - Third-party provider runtime.
 - Local metadata/content index.
-- Async provider execution, cancellation, and timeouts.
+- Incremental/streaming multi-provider result delivery.
+- Provider capability/health negotiation.
 - Search history, saved search, or provider settings center.
 - Accepted Privacy Shield, Wardveil Security, Everkeep, Identity, or Mesh runtime integration.
 - Formal Glaze UI 2.1.0 consumer conformance.

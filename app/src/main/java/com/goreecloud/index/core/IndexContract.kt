@@ -1,5 +1,14 @@
 package com.goreecloud.index.core
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeout
+
 object GoreeCloudIndexContract {
     const val ACTION_SEARCH = "com.goreecloud.index.action.SEARCH"
     const val EXTRA_QUERY = "com.goreecloud.index.extra.QUERY"
@@ -17,6 +26,17 @@ enum class IndexResultType {
     GOREECLOUD,
     DEVICE,
     WEB,
+}
+
+enum class IndexProcessingLocation {
+    LOCAL,
+    REMOTE,
+    MIXED,
+}
+
+enum class IndexProviderIssueKind {
+    FAILED,
+    TIMED_OUT,
 }
 
 sealed interface IndexAction {
@@ -41,9 +61,19 @@ data class IndexQuery(
     val maxResults: Int = 50,
 )
 
+data class IndexExecutionContext(
+    val allowedProviderIds: Set<String>,
+    val localOnly: Boolean = true,
+) {
+    fun allows(provider: IndexProvider): Boolean =
+        provider.providerId in allowedProviderIds &&
+            (!localOnly || provider.processingLocation == IndexProcessingLocation.LOCAL)
+}
+
 data class IndexProviderIssue(
     val providerId: String,
     val providerName: String,
+    val kind: IndexProviderIssueKind,
 )
 
 data class IndexSearchSnapshot(
@@ -54,45 +84,94 @@ data class IndexSearchSnapshot(
 interface IndexProvider {
     val providerId: String
     val displayName: String
-    fun search(query: IndexQuery): List<IndexResult>
+    val processingLocation: IndexProcessingLocation
+    val timeoutMillis: Long
+    suspend fun search(query: IndexQuery): List<IndexResult>
 }
+
+private data class IndexProviderOutcome(
+    val results: List<IndexResult> = emptyList(),
+    val issue: IndexProviderIssue? = null,
+)
 
 class IndexQueryEngine(
     private val providers: List<IndexProvider>,
+    private val providerDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    fun search(rawQuery: String, maxResults: Int = 50): IndexSearchSnapshot {
+    suspend fun search(
+        rawQuery: String,
+        executionContext: IndexExecutionContext,
+        maxResults: Int = 50,
+    ): IndexSearchSnapshot = supervisorScope {
         val query = IndexQuery(
             text = rawQuery.trim(),
-            maxResults = maxResults.coerceIn(1, 100),
+            maxResults = maxResults.coerceIn(1, MAX_RESULTS),
         )
-        val issues = mutableListOf<IndexProviderIssue>()
 
-        val results = providers
+        val outcomes = providers
             .asSequence()
-            .flatMap { provider ->
-                try {
-                    provider.search(query).asSequence()
-                } catch (_: Exception) {
-                    issues += IndexProviderIssue(
-                        providerId = provider.providerId,
-                        providerName = provider.displayName,
-                    )
-                    emptySequence()
+            .filter(executionContext::allows)
+            .map { provider ->
+                async(providerDispatcher) {
+                    queryProvider(provider, query)
                 }
             }
+            .toList()
+            .awaitAll()
+
+        val ranking = compareByDescending<IndexResult> { it.score }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+            .thenBy { it.providerId }
+
+        val results = outcomes
+            .asSequence()
+            .flatMap { it.results.asSequence() }
+            .sortedWith(ranking)
             .distinctBy { result -> "${result.providerId}:${result.id}" }
-            .sortedWith(
-                compareByDescending<IndexResult> { it.score }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
-                    .thenBy { it.providerId }
-            )
             .take(query.maxResults)
             .toList()
 
-        return IndexSearchSnapshot(
+        IndexSearchSnapshot(
             results = results,
-            providerIssues = issues.distinctBy { it.providerId },
+            providerIssues = outcomes
+                .mapNotNull { it.issue }
+                .distinctBy { it.providerId },
         )
+    }
+
+    private suspend fun queryProvider(
+        provider: IndexProvider,
+        query: IndexQuery,
+    ): IndexProviderOutcome = try {
+        val timeoutMillis = provider.timeoutMillis.coerceIn(1L, MAX_PROVIDER_TIMEOUT_MILLIS)
+        IndexProviderOutcome(
+            results = withTimeout(timeoutMillis) {
+                provider.search(query)
+            },
+        )
+    } catch (_: TimeoutCancellationException) {
+        IndexProviderOutcome(
+            issue = IndexProviderIssue(
+                providerId = provider.providerId,
+                providerName = provider.displayName,
+                kind = IndexProviderIssueKind.TIMED_OUT,
+            ),
+        )
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        IndexProviderOutcome(
+            issue = IndexProviderIssue(
+                providerId = provider.providerId,
+                providerName = provider.displayName,
+                kind = IndexProviderIssueKind.FAILED,
+            ),
+        )
+    }
+
+    private companion object {
+        const val MAX_RESULTS = 100
+        const val MAX_PROVIDER_TIMEOUT_MILLIS = 5_000L
     }
 }
 

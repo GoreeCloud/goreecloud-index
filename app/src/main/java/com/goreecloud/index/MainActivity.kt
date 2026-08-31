@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
+import com.goreecloud.index.core.IndexExecutionContext
 import com.goreecloud.index.core.IndexQueryEngine
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.provider.apps.InstalledAppsProvider
@@ -18,6 +19,11 @@ import com.goreecloud.index.ui.theme.GoreeCloudIndexTheme
 class MainActivity : ComponentActivity() {
     private lateinit var appsProvider: InstalledAppsProvider
     private lateinit var queryEngine: IndexQueryEngine
+
+    private val executionContext = IndexExecutionContext(
+        allowedProviderIds = setOf(GoreeCloudIndexContract.PROVIDER_APPS),
+        localOnly = true,
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +36,12 @@ class MainActivity : ComponentActivity() {
             GoreeCloudIndexTheme {
                 IndexRoot(
                     initialQuery = intent.getStringExtra(GoreeCloudIndexContract.EXTRA_QUERY).orEmpty(),
-                    onSearch = queryEngine::search,
+                    onSearch = { query ->
+                        queryEngine.search(
+                            rawQuery = query,
+                            executionContext = executionContext,
+                        )
+                    },
                     onOpenResult = ::openResult,
                 )
             }

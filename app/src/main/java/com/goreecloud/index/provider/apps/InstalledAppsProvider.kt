@@ -8,6 +8,7 @@ import android.content.pm.ResolveInfo
 import android.os.Build
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
+import com.goreecloud.index.core.IndexProcessingLocation
 import com.goreecloud.index.core.IndexProvider
 import com.goreecloud.index.core.IndexQuery
 import com.goreecloud.index.core.IndexResult
@@ -29,6 +30,8 @@ class InstalledAppsProvider(
 ) : IndexProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_APPS
     override val displayName: String = "Applications"
+    override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.LOCAL
+    override val timeoutMillis: Long = 500L
 
     @Volatile
     private var entries: List<InstalledAppEntry> = discoverApps()
@@ -37,7 +40,7 @@ class InstalledAppsProvider(
         entries = discoverApps()
     }
 
-    override fun search(query: IndexQuery): List<IndexResult> = entries
+    override suspend fun search(query: IndexQuery): List<IndexResult> = entries
         .asSequence()
         .mapNotNull { app ->
             val score = IndexTextMatcher.score(
