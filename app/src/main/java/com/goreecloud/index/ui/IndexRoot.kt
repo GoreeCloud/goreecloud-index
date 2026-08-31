@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -18,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -35,25 +38,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.goreecloud.index.core.IndexProviderIssue
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
+import com.goreecloud.index.core.IndexSearchSnapshot
 
 @Composable
 fun IndexRoot(
     initialQuery: String,
-    onSearch: (String) -> List<IndexResult>,
+    onSearch: (String) -> IndexSearchSnapshot,
     onOpenResult: (IndexResult) -> Unit,
 ) {
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
-    var results by remember { mutableStateOf(emptyList<IndexResult>()) }
+    var snapshot by remember { mutableStateOf(IndexSearchSnapshot()) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(query) {
-        results = onSearch(query)
+        snapshot = onSearch(query)
     }
 
     LaunchedEffect(Unit) {
@@ -68,15 +75,17 @@ fun IndexRoot(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
             Text(
                 text = "GoreeCloud Index",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
-                text = "Unified search",
+                text = "Universal search, source by source",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -88,55 +97,47 @@ fun IndexRoot(
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 56.dp)
                     .focusRequester(focusRequester),
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
-                label = { Text("Search") },
-                placeholder = { Text("Apps, files, people, calendar…") },
+                label = { Text("Search applications") },
+                placeholder = { Text("Apps on this device") },
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
-            ) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        "Development provider coverage",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "Installed applications are searchable now. Files, contacts, calendar, media, GoreeCloud services, connected devices, optional third-party services, and web results remain separately gated provider work.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            SourceStatusCard()
+
+            snapshot.providerIssues.firstOrNull()?.let { issue ->
+                Spacer(Modifier.height(12.dp))
+                ProviderIssueCard(issue)
             }
 
             Spacer(Modifier.height(16.dp))
 
+            val results = snapshot.results
             if (results.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        if (query.isBlank()) "No searchable applications are available"
-                        else "No results",
+                        text = when {
+                            snapshot.providerIssues.isNotEmpty() -> "Search is temporarily unavailable"
+                            query.isBlank() -> "No searchable applications are available"
+                            else -> "No application matches"
+                        },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
                 Text(
-                    text = if (query.isBlank()) "Applications" else "Results",
+                    text = if (query.isBlank()) "Applications" else "Application results",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.semantics { heading() },
                 )
                 Spacer(Modifier.height(8.dp))
 
@@ -160,6 +161,57 @@ fun IndexRoot(
 }
 
 @Composable
+private fun SourceStatusCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = "Applications · On-device",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "This development slice searches launcher applications locally. Files, contacts, calendar, GoreeCloud services, optional third-party services, and web results remain separately gated provider work.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProviderIssueCard(issue: IndexProviderIssue) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = "${issue.providerName} temporarily unavailable",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = "Index kept the provider failure isolated instead of treating it as a successful empty result.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun IndexResultRow(
     result: IndexResult,
     onClick: () -> Unit,
@@ -167,6 +219,7 @@ private fun IndexResultRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 72.dp)
             .clickable(enabled = result.action != null, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -177,7 +230,7 @@ private fun IndexResultRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(48.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
             ) {
@@ -197,14 +250,14 @@ private fun IndexResultRow(
                     .padding(start = 12.dp),
             ) {
                 Text(
-                    result.title,
+                    text = result.title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     fontWeight = FontWeight.SemiBold,
                 )
                 result.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
                     Text(
-                        subtitle,
+                        text = subtitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
@@ -223,7 +276,7 @@ private fun IndexResultRow(
 }
 
 private fun sourceLabel(type: IndexResultType): String = when (type) {
-    IndexResultType.APP -> "Apps · On device"
+    IndexResultType.APP -> "Apps · On-device"
     IndexResultType.ACTION -> "Action"
     IndexResultType.CONTACT -> "People"
     IndexResultType.FILE -> "Files"

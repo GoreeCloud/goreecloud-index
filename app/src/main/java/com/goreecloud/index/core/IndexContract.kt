@@ -41,25 +41,44 @@ data class IndexQuery(
     val maxResults: Int = 50,
 )
 
+data class IndexProviderIssue(
+    val providerId: String,
+    val providerName: String,
+)
+
+data class IndexSearchSnapshot(
+    val results: List<IndexResult> = emptyList(),
+    val providerIssues: List<IndexProviderIssue> = emptyList(),
+)
+
 interface IndexProvider {
     val providerId: String
+    val displayName: String
     fun search(query: IndexQuery): List<IndexResult>
 }
 
 class IndexQueryEngine(
     private val providers: List<IndexProvider>,
 ) {
-    fun search(rawQuery: String, maxResults: Int = 50): List<IndexResult> {
+    fun search(rawQuery: String, maxResults: Int = 50): IndexSearchSnapshot {
         val query = IndexQuery(
             text = rawQuery.trim(),
             maxResults = maxResults.coerceIn(1, 100),
         )
+        val issues = mutableListOf<IndexProviderIssue>()
 
-        return providers
+        val results = providers
             .asSequence()
             .flatMap { provider ->
-                runCatching { provider.search(query).asSequence() }
-                    .getOrElse { emptySequence() }
+                try {
+                    provider.search(query).asSequence()
+                } catch (_: Exception) {
+                    issues += IndexProviderIssue(
+                        providerId = provider.providerId,
+                        providerName = provider.displayName,
+                    )
+                    emptySequence()
+                }
             }
             .distinctBy { result -> "${result.providerId}:${result.id}" }
             .sortedWith(
@@ -69,6 +88,11 @@ class IndexQueryEngine(
             )
             .take(query.maxResults)
             .toList()
+
+        return IndexSearchSnapshot(
+            results = results,
+            providerIssues = issues.distinctBy { it.providerId },
+        )
     }
 }
 

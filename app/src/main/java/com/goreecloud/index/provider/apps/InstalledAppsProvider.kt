@@ -3,7 +3,9 @@ package com.goreecloud.index.provider.apps
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.os.Build
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
 import com.goreecloud.index.core.IndexProvider
@@ -26,6 +28,7 @@ class InstalledAppsProvider(
     private val context: Context,
 ) : IndexProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_APPS
+    override val displayName: String = "Applications"
 
     @Volatile
     private var entries: List<InstalledAppEntry> = discoverApps()
@@ -66,8 +69,7 @@ class InstalledAppsProvider(
 
     private fun discoverApps(): List<InstalledAppEntry> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return context.packageManager
-            .queryIntentActivities(launcherIntent, 0)
+        return queryLauncherActivities(launcherIntent)
             .asSequence()
             .mapNotNull(::toEntry)
             .filterNot { it.packageName == context.packageName }
@@ -80,9 +82,22 @@ class InstalledAppsProvider(
             .toList()
     }
 
+    @Suppress("DEPRECATION")
+    private fun queryLauncherActivities(intent: Intent): List<ResolveInfo> {
+        val packageManager = context.packageManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(
+                intent,
+                PackageManager.ResolveInfoFlags.of(0L),
+            )
+        } else {
+            packageManager.queryIntentActivities(intent, 0)
+        }
+    }
+
     private fun toEntry(resolveInfo: ResolveInfo): InstalledAppEntry? {
         val activityInfo = resolveInfo.activityInfo ?: return null
-        val label = resolveInfo.loadLabel(context.packageManager)?.toString()?.trim().orEmpty()
+        val label = resolveInfo.loadLabel(context.packageManager).toString().trim()
         if (label.isEmpty()) return null
 
         return InstalledAppEntry(
