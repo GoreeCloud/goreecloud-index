@@ -170,6 +170,118 @@ class IndexQueryEngineTest {
     }
 
     @Test
+    fun authorityGatedProviderIsNotDispatchedWithoutEvidence() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var invoked = false
+        val contacts = provider(
+            id = "contacts",
+            name = "Contacts",
+            requirements = CONTACT_REQUIREMENTS,
+        ) {
+            invoked = true
+            listOf(result("one", "contacts", "Ada Lovelace", 900))
+        }
+
+        val snapshot = IndexQueryEngine(listOf(contacts), dispatcher).search(
+            rawQuery = "ada",
+            executionContext = contextFor("contacts"),
+        )
+
+        assertFalse(invoked)
+        assertTrue(snapshot.results.isEmpty())
+        assertEquals(1, snapshot.providerIssues.size)
+        assertEquals(IndexProviderIssueKind.AUTHORIZATION_REQUIRED, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
+    fun authorityGatedProviderRunsWithUnconstrainedEvidence() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var invoked = false
+        val contacts = provider(
+            id = "contacts",
+            name = "Contacts",
+            requirements = CONTACT_REQUIREMENTS,
+        ) {
+            invoked = true
+            listOf(result("one", "contacts", "Ada Lovelace", 900))
+        }
+        val authority = IndexProviderAuthority(
+            androidPermissionGranted = true,
+            privacyShield = IndexAuthorityEvidence(IndexAuthorityOutcome.ALLOW, "privacy-decision-1"),
+            identity = IndexAuthorityEvidence(IndexAuthorityOutcome.ALLOW, "identity-authz-1"),
+        )
+
+        val snapshot = IndexQueryEngine(listOf(contacts), dispatcher).search(
+            rawQuery = "ada",
+            executionContext = IndexExecutionContext(
+                allowedProviderIds = setOf("contacts"),
+                providerAuthorities = mapOf("contacts" to authority),
+            ),
+        )
+
+        assertTrue(invoked)
+        assertEquals(listOf("Ada Lovelace"), snapshot.results.map { it.title })
+        assertTrue(snapshot.providerIssues.isEmpty())
+    }
+
+    @Test
+    fun constrainedAuthorityFailsClosedUntilObligationsAreSupported() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var invoked = false
+        val contacts = provider(
+            id = "contacts",
+            name = "Contacts",
+            requirements = CONTACT_REQUIREMENTS,
+        ) {
+            invoked = true
+            emptyList()
+        }
+        val authority = IndexProviderAuthority(
+            androidPermissionGranted = true,
+            privacyShield = IndexAuthorityEvidence(
+                IndexAuthorityOutcome.ALLOW_WITH_CONSTRAINTS,
+                "privacy-decision-2",
+            ),
+            identity = IndexAuthorityEvidence(IndexAuthorityOutcome.ALLOW, "identity-authz-2"),
+        )
+
+        val snapshot = IndexQueryEngine(listOf(contacts), dispatcher).search(
+            rawQuery = "ada",
+            executionContext = IndexExecutionContext(
+                allowedProviderIds = setOf("contacts"),
+                providerAuthorities = mapOf("contacts" to authority),
+            ),
+        )
+
+        assertFalse(invoked)
+        assertEquals(IndexProviderIssueKind.AUTHORIZATION_REQUIRED, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
+    fun nonBrowsingProviderDoesNotRequestAuthorityForBlankQuery() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var invoked = false
+        val contacts = provider(
+            id = "contacts",
+            name = "Contacts",
+            requirements = CONTACT_REQUIREMENTS,
+            emptyQuery = false,
+        ) {
+            invoked = true
+            emptyList()
+        }
+
+        val snapshot = IndexQueryEngine(listOf(contacts), dispatcher).search(
+            rawQuery = "",
+            executionContext = contextFor("contacts"),
+        )
+
+        assertFalse(invoked)
+        assertTrue(snapshot.results.isEmpty())
+        assertTrue(snapshot.providerIssues.isEmpty())
+    }
+
+    @Test
     fun resultsAreRankedBeforeProviderScopedDuplicatesAreCollapsed() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val appsProvider = provider("apps", "Applications") {
@@ -246,12 +358,24 @@ class IndexQueryEngineTest {
         name: String,
         location: IndexProcessingLocation = IndexProcessingLocation.LOCAL,
         providerTimeoutMillis: Long = 1_000L,
+        requirements: Set<IndexAuthorityRequirement> = emptySet(),
+        emptyQuery: Boolean = true,
         block: suspend (IndexQuery) -> List<IndexResult>,
     ) = object : IndexProvider {
         override val providerId: String = id
         override val displayName: String = name
         override val processingLocation: IndexProcessingLocation = location
         override val timeoutMillis: Long = providerTimeoutMillis
+        override val authorityRequirements: Set<IndexAuthorityRequirement> = requirements
+        override val supportsEmptyQuery: Boolean = emptyQuery
         override suspend fun search(query: IndexQuery): List<IndexResult> = block(query)
+    }
+
+    private companion object {
+        val CONTACT_REQUIREMENTS = setOf(
+            IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+            IndexAuthorityRequirement.PRIVACY_SHIELD,
+            IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+        )
     }
 }
