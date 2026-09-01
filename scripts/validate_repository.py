@@ -10,10 +10,12 @@ required = [
     "app/src/main/java/com/goreecloud/index/MainActivity.kt",
     "app/src/main/java/com/goreecloud/index/core/IndexAuthority.kt",
     "app/src/main/java/com/goreecloud/index/core/IndexContract.kt",
+    "app/src/main/java/com/goreecloud/index/core/PlatformAuthorityAdapters.kt",
     "app/src/main/java/com/goreecloud/index/provider/apps/InstalledAppsProvider.kt",
     "app/src/main/java/com/goreecloud/index/provider/contacts/ContactsProvider.kt",
     "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt",
     "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt",
+    "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt",
 ]
 missing = [path for path in required if not (ROOT / path).is_file()]
 if missing:
@@ -52,6 +54,22 @@ for expected in [
 ]:
     if expected not in authority:
         raise SystemExit(f"Missing fail-closed authority contract: {expected}")
+
+platform_authority = (
+    ROOT / "app/src/main/java/com/goreecloud/index/core/PlatformAuthorityAdapters.kt"
+).read_text(encoding="utf-8")
+for expected in [
+    "PrivacyShieldDecisionOutcome", "ALLOW_WITH_CONSTRAINTS", "REQUIRE_USER_DECISION",
+    "decision.requestId != expectedRequestId", "decision.expiresAt?.isAfter(now) == false",
+    'IDENTITY_EVIDENCE_CONTRACT = "goreecloud.identity-evidence.v1"',
+    'AUTHORIZATION_ASSERTION = "authorization-decision"',
+    "containsReusableCredentials", "containsRawProfileAttributes",
+    "IdentityAuthorizationOutcomeInterpreter", "?: return IndexAuthorityEvidence.unavailable()",
+    "IndexPlatformAuthoritySnapshot", "IndexPlatformAuthorityGateway",
+    "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection",
+]:
+    if expected not in platform_authority:
+        raise SystemExit(f"Missing platform authority adapter boundary: {expected}")
 
 core = (ROOT / "app/src/main/java/com/goreecloud/index/core/IndexContract.kt").read_text(encoding="utf-8")
 for expected in [
@@ -103,8 +121,9 @@ for prohibited in [
 main_activity = (ROOT / "app/src/main/java/com/goreecloud/index/MainActivity.kt").read_text(encoding="utf-8")
 for expected in [
     "ContactsProvider", "PROVIDER_APPS", "PROVIDER_CONTACTS", "providerAuthorities",
-    "Manifest.permission.READ_CONTACTS", "privacyShield = IndexAuthorityEvidence.unavailable()",
-    "identity = IndexAuthorityEvidence.unavailable()", "IndexAction.ViewContact",
+    "Manifest.permission.READ_CONTACTS", "IndexPlatformAuthorityGateway",
+    "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection.project",
+    "platformAuthorityGateway.contactsSnapshot()", "IndexAction.ViewContact",
     "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
     'uri.pathSegments.firstOrNull() == "contacts"', "Unable to open this application.",
     "Unable to open this contact.",
@@ -137,6 +156,18 @@ for expected in [
 ]:
     if expected not in tests:
         raise SystemExit(f"Missing async/authority runtime test: {expected}")
+
+platform_tests = (
+    ROOT / "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt"
+).read_text(encoding="utf-8")
+for expected in [
+    "privacyShieldUnconstrainedAllowProjectsAllow", "privacyShieldObligationsRemainConstrained",
+    "privacyShieldStaleEvidenceFailsClosed", "identityAuthorizationUsesIdentityOwnedInterpreter",
+    "identityUnknownOutcomeFailsClosed", "identityMinimizationViolationFailsClosed",
+    "unavailableGatewayKeepsContactsBlocked", "acceptedSnapshotCanSatisfyContactsAuthorities",
+]:
+    if expected not in platform_tests:
+        raise SystemExit(f"Missing platform authority adapter test: {expected}")
 
 accepted_main = "cc3cc21d6e11dad026253c3371c3b67663d3b726"
 accepted_run = "33431294298"
@@ -180,4 +211,4 @@ for expected in [
     if expected not in architecture:
         raise SystemExit(f"ARCHITECTURE.md missing authority/runtime boundary: {expected}")
 
-print("GoreeCloud Index Contacts authority branch repository validation passed")
+print("GoreeCloud Index platform authority adapter repository validation passed")
