@@ -2,32 +2,42 @@
 
 Branding authority: `GoreeCloud/goreecloud-branding-assets`.
 
-## Current identity status
+## Approved product identity
 
-GoreeCloud Index does **not yet have approved canonical product artwork**. Missing official artwork remains a visual-identity and production-readiness blocker. GoreeCloud Search, GoreeCloud Launcher, a generic magnifying glass, a generic document icon, or an AI cliché must not be substituted as the final Index identity.
-
-The reserved future canonical path is:
+GoreeCloud Index now has approved canonical product artwork at:
 
 `products/index/app-icon.svg`
 
-A first-round approval candidate is under review in `GoreeCloud/goreecloud-branding-assets` pull request #5 at:
+Canonical Git blob:
 
-`concepts/product-identity-round-1/index.svg`
+`797cfbd9ae490e37b5a90efe02905159158a8e88`
 
-That concept is not production artwork and must not be represented as approved until the canonical branding review and promotion gates are complete.
+The approved identity uses three layered index records with tabbed structural edges to communicate organized provider layers without using GoreeCloud Search's magnifying-glass silhouette, GoreeCloud Launcher's four-tile matrix, or generic document/AI imagery.
 
-The current Android application manifest does not declare `android:icon`. Canonical promotion therefore must be followed by a traceable Android launcher/adaptive-icon derivative and explicit manifest/package integration before the visual-identity blocker is considered resolved.
+Source-level visual acceptance, small-size/grayscale review, ecosystem collision review, semantic-state review, and graphical-contrast evidence are retained in `GoreeCloud/goreecloud-branding-assets` under `concepts/product-identity-round-1/REVIEW-EVIDENCE.md`.
+
+## Android derivative
+
+This repository consumes a traceable native Android VectorDrawable derivative at:
+
+`app/src/main/res/drawable/goreecloud_index_icon.xml`
+
+The application manifest consumes it through:
+
+`android:icon="@drawable/goreecloud_index_icon"`
+
+The derivative preserves the canonical 64×64 geometry, violet→indigo identity relationship, white foreground construction, three layered records, and tabbed right-edge structure within Android VectorDrawable constraints.
+
+This direct vector launcher derivative is the current Android packaging role. Adaptive/monochrome launcher variants may be added when required by an accepted platform-specific derivative specification; they must remain traceable to the same canonical source.
 
 ## Identity boundary
 
-Index represents GoreeCloud's privacy-first universal search and indexing authority: structured indexing across authorized providers while preserving provenance and platform authority boundaries. GoreeCloud Search remains the Internet/web/current-information search product, and GoreeCloud Launcher remains an invocation/presentation surface.
+Index represents GoreeCloud's privacy-first universal search and indexing authority: structured indexing across authorized providers while preserving provenance and platform authority boundaries. GoreeCloud Search remains authoritative for Internet/web/current-information search, and GoreeCloud Launcher remains an invocation/presentation surface.
 
-The current candidate uses layered index records with tabbed structural edges to communicate organized provider layers without using Search's magnifying-glass silhouette or Launcher's four-tile matrix. The identity must not imply that any provider is authorized, available, private, complete, synchronized, or successfully indexed without authoritative runtime evidence.
+The identity does not imply that any provider is authorized, available, private, complete, synchronized, indexed, or successfully queried without authoritative runtime evidence.
 
 ## Consumer-derivative rule
 
-This repository is a branding consumer, not the canonical branding authority. Android launcher resources, repository/release artwork, documentation assets, or other local visual files may be added only as traceable derivatives of an approved canonical source in `GoreeCloud/goreecloud-branding-assets`.
+This repository is a branding consumer, not the canonical branding authority. Android launcher resources, repository/release artwork, documentation assets, or other local visual files are derivatives of the exact canonical source above and must remain traceable to its approved Git blob.
 
-No local derivative is approved by this contract yet. After canonical promotion, this file must record the exact canonical path and Git blob together with required derivative paths, supported optical roles, platform targets, and the manifest reference that consumes the Android application icon.
-
-Branding never establishes provider authorization, Privacy Shield state, GoreeCloud Identity authorization, indexing completeness, security, continuity, availability, or release claims.
+Branding never establishes provider authorization, Privacy Shield state, GoreeCloud Identity authorization, indexing completeness, security, continuity, availability, production acceptance, or Stable qualification.
