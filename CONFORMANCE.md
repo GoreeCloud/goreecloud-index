@@ -2,143 +2,115 @@
 
 ## Lifecycle State
 
-**Release lifecycle: Development.** Production acceptance and Stable qualification remain false.
-
-The asynchronous provider-runtime milestone is accepted on authoritative main `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9`. A checked source/build item does not imply representative-device, platform-runtime, production, or Stable acceptance.
+**Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` Contacts/authority slice remains branch source until exact-head CI and merge acceptance complete.
 
 ## Native Implementation
 
-- [x] Original GoreeCloud-owned Android application source.
-- [x] Kotlin and Jetpack Compose application foundation.
+- [x] Original GoreeCloud-owned Android Kotlin/Compose source.
 - [x] Production package `com.goreecloud.index`; Development package `com.goreecloud.index.dev`.
 - [x] API 26 minimum, compile API 37, target API 36.
-- [x] Development version `0.2.0-dev`, version code `2`.
-- [x] Launcher→Index search-entry contract.
+- [x] Accepted-main `0.2.0-dev` / code 2.
+- [x] Branch source `0.3.0-dev` / code 3.
 - [ ] Representative Android device acceptance.
 - [ ] Controlled production signing/release packaging.
 
-## Search Architecture
+## Search Runtime
 
-- [x] Provider-neutral query/result/type/action model.
-- [x] Provider-scoped result identity.
-- [x] Provider processing-location declaration.
-- [x] Suspendable provider query contract.
-- [x] Provider timeout declaration.
-- [x] Fail-closed `IndexExecutionContext` and exact provider allowlisting.
-- [x] Local-only gating for remote/mixed providers.
-- [x] Structured concurrent provider execution under `supervisorScope`.
-- [x] Provider-dispatcher injection for deterministic tests.
-- [x] Superseded-query cancellation through Compose query lifecycle.
-- [x] External `CancellationException` propagation.
-- [x] Per-provider timeout enforcement through `withTimeout`.
-- [x] Global five-second Development timeout safety ceiling.
-- [x] Explicit `FAILED` and `TIMED_OUT` issue kinds.
-- [x] Provider issues independent of healthy results.
-- [x] Deterministic ranking before provider-scoped deduplication.
+- [x] Provider-neutral query/result/action model.
+- [x] Suspendable provider contract with processing location and timeout.
+- [x] Exact allowlisting and local-only gating.
+- [x] Structured concurrent dispatch and cancellation propagation.
+- [x] Bounded provider timeouts.
+- [x] Sanitized `FAILED` and `TIMED_OUT` issues.
+- [x] Healthy sibling-result preservation.
+- [x] Ranking before provider-scoped deduplication.
 - [x] Result-count bounds.
-- [ ] Incremental/streaming result delivery.
+- [x] Branch source: provider authority requirements and evidence.
+- [x] Branch source: `AUTHORIZATION_REQUIRED` state.
+- [x] Branch source: non-browsing providers excluded on blank query.
+- [ ] Incremental/streaming results.
 - [ ] Provider health/capability negotiation.
-- [ ] Approved Privacy Shield / Identity authorization integration.
-- [ ] Local index storage/rebuild lifecycle.
 
-`IndexExecutionContext` is internal execution eligibility only; it is not a Privacy Shield consent decision or GoreeCloud Identity authorization token.
+## Authority Model
 
-## Current Provider Coverage
+- [x] Android runtime permission is distinct from Privacy Shield and Identity authority.
+- [x] Privacy Shield/Identity evidence requires referenced unconstrained `ALLOW`.
+- [x] `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE` fail closed.
+- [x] `ALLOW_WITH_CONSTRAINTS` fails closed until obligations can be evaluated.
+- [x] Missing authority prevents provider dispatch.
+- [x] Internal execution context is not described as platform authorization.
+- [ ] Accepted Privacy Shield runtime adapter.
+- [ ] Accepted GoreeCloud Identity runtime adapter.
+- [ ] User decision/permission workflow bound to accepted platform decisions.
+- [ ] Runtime decision expiry/revocation/obligation evaluation.
 
-- [x] Android launcher-visible Applications provider.
-- [x] Scoped `ACTION_MAIN` / `CATEGORY_LAUNCHER` visibility.
+## Applications Provider
+
+- [x] Launcher-visible provider using `ACTION_MAIN` / `CATEGORY_LAUNCHER`.
 - [x] No unrestricted `QUERY_ALL_PACKAGES`.
-- [x] No Android `INTERNET` permission in the current local-only slice.
-- [x] `LOCAL` processing declaration.
-- [x] Provisional 500 ms Development timeout.
-- [x] Application-label/package search.
-- [x] Exact launcher-component identity and typed launch action.
-- [x] API 33+ `ResolveInfoFlags` path with compatibility fallback.
-- [ ] Representative-device timeout/performance acceptance.
-- [ ] File/folder provider.
-- [ ] Contacts provider.
-- [ ] Calendar provider.
-- [ ] GoreeCloud Search provider.
-- [ ] Mesh-discovered first-party provider runtime.
-- [ ] Extension provider runtime.
-- [ ] Third-party provider runtime.
+- [x] No Android Internet permission.
+- [x] Local processing and 500 ms provisional timeout.
+- [x] Exact launcher-component action.
+- [ ] Representative-device performance acceptance.
 
-## Launcher Integration
+## Contacts Provider — Branch Source
 
-- [x] Search action `com.goreecloud.index.action.SEARCH`.
-- [x] Query extra `com.goreecloud.index.extra.QUERY`.
-- [x] Initial query support.
-- [ ] Representative Launcher→Index device acceptance for `0.2.0-dev`.
+- [x] Android `READ_CONTACTS` declared.
+- [x] Android ContactsProvider/`ContactsContract` is source authority.
+- [x] `LOCAL` processing.
+- [x] 750 ms provisional timeout.
+- [x] No blank-query enumeration.
+- [x] Filtered Contacts URI query path.
+- [x] Projection limited to ID, lookup key, and display name.
+- [x] No phone/email field reads in this provider slice.
+- [x] Typed contact-view result action.
+- [x] Contact action URI scheme/authority/path validation before handoff.
+- [x] Android + Privacy Shield + Identity requirements declared.
+- [x] Current runtime keeps Privacy Shield/Identity unavailable, so Contacts is not dispatched.
+- [ ] Accepted Contacts runtime enablement.
+- [ ] Explicit user opt-in and Android permission grant flow.
+- [ ] Representative-device cancellation/timeout/action acceptance.
 
 ## Glaze UI 2.1.0
 
 - [x] Source targets Glaze UI 2.1.0.
-- [x] Search-first interaction.
-- [x] Provider/processing location visible.
-- [x] Browse, searching, no-match, provider-failed, provider-timed-out, and result states distinct.
-- [x] Failure/timeout not represented as successful empty search.
-- [x] Safe-drawing insets.
-- [x] Bounded search/result interaction sizes.
-- [x] Semantic headings.
-- [x] No animated progress requirement.
-- [ ] Formal application-specific Glaze UI 2.1.0 consumer conformance.
-- [ ] Reduced-transparency acceptance.
-- [ ] Increased-contrast acceptance.
-- [ ] Reduced-motion acceptance.
-- [ ] Large-text/reflow acceptance.
-- [ ] Representative phone/tablet visual acceptance.
-
-No formal Glaze UI consumer-conformance claim is made yet.
+- [x] Search-first interaction and visible source state.
+- [x] Authorization-required state distinct from operational failure/timeout.
+- [x] Safe-drawing insets, bounded targets, semantic headings, non-animated progress.
+- [ ] Formal application-specific conformance.
+- [ ] Reduced transparency / increased contrast / reduced motion / large-text acceptance.
+- [ ] Representative phone/tablet visual/accessibility acceptance.
 
 ## Privacy Shield
 
-- [x] Current provider local-only.
-- [x] No Android Internet permission.
-- [x] Current path uses `localOnly=true`.
-- [x] No intentional query analytics/remote telemetry/persistent history.
-- [ ] Approved Privacy Shield runtime contract integration.
-- [ ] Provider enable/disable and permission review center.
-- [ ] Authorization evidence for private-content providers.
-- [ ] Retention/history rules for durable query state.
+- [x] No silent remote fallback.
+- [x] Current providers declare local processing.
+- [x] No intentional persistent search history or query analytics.
+- [x] Branch source consumes decision outcome/reference separately from Android permission.
+- [ ] Real Privacy Shield request/response adapter and runtime evidence.
+- [ ] Provider controls and retained-decision lifecycle.
 
-## Wardveil Security
+## GoreeCloud Identity
 
-- [x] No positive trust/protection claim inferred from provider success.
-- [x] Failures/timeouts remain degraded state.
-- [x] Current action is typed to exact Android launcher component.
-- [ ] Approved Wardveil provider-trust/security evidence integration.
-- [ ] Extension/third-party provider security review.
-- [ ] Validation for future URI/deep-link/remote actions.
+- [x] Authentication is not treated as blanket authorization.
+- [x] Branch source requires independent Identity authorization evidence for Contacts.
+- [ ] Actual Identity authorization adapter/API acceptance.
+- [ ] User/profile/caller isolation acceptance.
 
-## Everkeep, Identity, and Mesh
+## Wardveil Security, Everkeep, and Mesh
 
-- [x] Current query/runtime state is transient.
-- [ ] Everkeep integration for durable preferences/configuration.
-- [ ] GoreeCloud Identity runtime integration and user/profile isolation acceptance.
-- [ ] Caller/provider scoped authorization.
-- [ ] GoreeCloud Mesh first-party provider discovery/coordination.
+- [x] No Wardveil trust/protection claim inferred from provider success.
+- [x] Current query state remains transient.
+- [ ] Wardveil provider/action security evidence integration.
+- [ ] Everkeep continuity for applicable durable settings/configuration.
+- [ ] Mesh provider discovery/coordination integration.
 
-## Automated Validation
+## Accepted Main Automated Evidence
 
-Pull request #4 candidate `d8b563705ccf1d05444df18e7a593a454d4c4103` passed run `33429486374`.
+- Source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
+- Exact-main workflow: `33431294298`
+- APK SHA-256: `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
+- Artifact: `9772740479`
+- Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
 
-Authoritative main `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` passed exact-main run `33429792389`.
-
-Validated on exact main:
-
-- [x] Exact source revision capture.
-- [x] Repository-contract validation.
-- [x] Coroutine unit tests.
-- [x] Android lint.
-- [x] Development APK assembly.
-- [x] Package/version/label verification.
-- [x] APK SHA-256 capture.
-- [x] Artifact publication.
-
-Accepted-main APK SHA-256: `a2605bb1e993dd027afc68b0900b60f2fcf9567ec59399e5a02a178af1cc815f`.
-
-Accepted-main artifact: `9772201920`, `goreecloud-index-development-apk-e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9`.
-
-Artifact digest: `sha256:0aa9c334b980f558fa983ef059f4fc7a73cf57fdf8c82d39ca2414ec60c77b75`.
-
-Passing these checks establishes Development source/build evidence only.
+Branch checks are not marked accepted until their conclusions are observed.

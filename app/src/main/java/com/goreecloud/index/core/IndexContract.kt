@@ -13,6 +13,7 @@ object GoreeCloudIndexContract {
     const val ACTION_SEARCH = "com.goreecloud.index.action.SEARCH"
     const val EXTRA_QUERY = "com.goreecloud.index.extra.QUERY"
     const val PROVIDER_APPS = "goreecloud.index.provider.apps"
+    const val PROVIDER_CONTACTS = "goreecloud.index.provider.contacts"
 }
 
 enum class IndexResultType {
@@ -37,12 +38,17 @@ enum class IndexProcessingLocation {
 enum class IndexProviderIssueKind {
     FAILED,
     TIMED_OUT,
+    AUTHORIZATION_REQUIRED,
 }
 
 sealed interface IndexAction {
     data class LaunchActivity(
         val packageName: String,
         val className: String,
+    ) : IndexAction
+
+    data class ViewContact(
+        val uri: String,
     ) : IndexAction
 }
 
@@ -64,10 +70,29 @@ data class IndexQuery(
 data class IndexExecutionContext(
     val allowedProviderIds: Set<String>,
     val localOnly: Boolean = true,
+    val providerAuthorities: Map<String, IndexProviderAuthority> = emptyMap(),
 ) {
     fun allows(provider: IndexProvider): Boolean =
         provider.providerId in allowedProviderIds &&
-            (!localOnly || provider.processingLocation == IndexProcessingLocation.LOCAL)
+            (!localOnly || provider.processingLocation == IndexProcessingLocation.LOCAL) &&
+            providerAuthorities
+                .getOrDefault(provider.providerId, IndexProviderAuthority())
+                .satisfiesAll(provider.authorityRequirements)
+
+    fun authorizationIssue(provider: IndexProvider): IndexProviderIssue? {
+        if (provider.providerId !in allowedProviderIds) return null
+        if (localOnly && provider.processingLocation != IndexProcessingLocation.LOCAL) return null
+        if (provider.authorityRequirements.isEmpty()) return null
+
+        val authority = providerAuthorities.getOrDefault(provider.providerId, IndexProviderAuthority())
+        if (authority.satisfiesAll(provider.authorityRequirements)) return null
+
+        return IndexProviderIssue(
+            providerId = provider.providerId,
+            providerName = provider.displayName,
+            kind = IndexProviderIssueKind.AUTHORIZATION_REQUIRED,
+        )
+    }
 }
 
 data class IndexProviderIssue(
@@ -86,6 +111,10 @@ interface IndexProvider {
     val displayName: String
     val processingLocation: IndexProcessingLocation
     val timeoutMillis: Long
+    val authorityRequirements: Set<IndexAuthorityRequirement>
+        get() = emptySet()
+    val supportsEmptyQuery: Boolean
+        get() = true
     suspend fun search(query: IndexQuery): List<IndexResult>
 }
 
@@ -108,7 +137,13 @@ class IndexQueryEngine(
             maxResults = maxResults.coerceIn(1, MAX_RESULTS),
         )
 
-        val outcomes = providers
+        val applicableProviders = providers.filter { provider ->
+            query.text.isNotEmpty() || provider.supportsEmptyQuery
+        }
+        val authorizationIssues = applicableProviders
+            .mapNotNull(executionContext::authorizationIssue)
+
+        val outcomes = applicableProviders
             .asSequence()
             .filter(executionContext::allows)
             .map { provider ->
@@ -133,8 +168,7 @@ class IndexQueryEngine(
 
         IndexSearchSnapshot(
             results = results,
-            providerIssues = outcomes
-                .mapNotNull { it.issue }
+            providerIssues = (authorizationIssues + outcomes.mapNotNull { it.issue })
                 .distinctBy { it.providerId },
         )
     }
