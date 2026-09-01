@@ -108,8 +108,8 @@ fun IndexRoot(
                     .focusRequester(focusRequester),
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
-                label = { Text("Search applications") },
-                placeholder = { Text("Apps on this device") },
+                label = { Text("Search this device") },
+                placeholder = { Text("Applications and authorized sources") },
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             )
 
@@ -120,13 +120,13 @@ fun IndexRoot(
             if (searching) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "Searching applications…",
+                    text = "Searching authorized sources…",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            snapshot.providerIssues.firstOrNull()?.let { issue ->
+            snapshot.providerIssues.forEach { issue ->
                 Spacer(Modifier.height(12.dp))
                 ProviderIssueCard(issue)
             }
@@ -142,16 +142,19 @@ fun IndexRoot(
                     Text(
                         text = when {
                             searching -> "Searching…"
-                            snapshot.providerIssues.isNotEmpty() -> "Search is temporarily unavailable"
-                            query.isBlank() -> "No searchable applications are available"
-                            else -> "No application matches"
+                            snapshot.providerIssues.any {
+                                it.kind == IndexProviderIssueKind.FAILED ||
+                                    it.kind == IndexProviderIssueKind.TIMED_OUT
+                            } -> "Some search sources are temporarily unavailable"
+                            query.isBlank() -> "Start typing to search authorized sources"
+                            else -> "No matches in available sources"
                         },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
                 Text(
-                    text = if (query.isBlank()) "Applications" else "Application results",
+                    text = if (query.isBlank()) "Applications" else "Results",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.semantics { heading() },
@@ -188,12 +191,18 @@ private fun SourceStatusCard() {
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = "Applications · On-device",
+                text = "Applications · On-device · Active",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "This development slice searches launcher applications locally. Files, contacts, calendar, GoreeCloud services, optional third-party services, and web results remain separately gated provider work.",
+                text = "Contacts · On-device · Authority gated",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
+                text = "The Contacts source is implemented but cannot run until Android contact permission plus Privacy Shield and GoreeCloud Identity authority evidence are all available. Files, calendar, GoreeCloud services, optional third-party services, and web results remain separately gated provider work.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
@@ -204,35 +213,47 @@ private fun SourceStatusCard() {
 
 @Composable
 private fun ProviderIssueCard(issue: IndexProviderIssue) {
+    val authorizationRequired = issue.kind == IndexProviderIssueKind.AUTHORIZATION_REQUIRED
     val title = when (issue.kind) {
         IndexProviderIssueKind.FAILED -> "${issue.providerName} temporarily unavailable"
         IndexProviderIssueKind.TIMED_OUT -> "${issue.providerName} took too long"
+        IndexProviderIssueKind.AUTHORIZATION_REQUIRED -> "${issue.providerName} not enabled"
     }
     val detail = when (issue.kind) {
         IndexProviderIssueKind.FAILED ->
             "Index isolated the provider failure and kept results from healthy providers."
         IndexProviderIssueKind.TIMED_OUT ->
             "Index stopped waiting at the provider's bounded timeout and kept results from healthy providers."
+        IndexProviderIssueKind.AUTHORIZATION_REQUIRED ->
+            "Required permission or platform authority evidence is incomplete, so Index did not send this provider the query."
+    }
+    val containerColor = if (authorizationRequired) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.errorContainer
+    }
+    val contentColor = if (authorizationRequired) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onErrorContainer
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = contentColor,
             )
             Text(
                 text = detail,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = contentColor,
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
@@ -306,7 +327,7 @@ private fun IndexResultRow(
 private fun sourceLabel(type: IndexResultType): String = when (type) {
     IndexResultType.APP -> "Apps · On-device"
     IndexResultType.ACTION -> "Action"
-    IndexResultType.CONTACT -> "People"
+    IndexResultType.CONTACT -> "People · On-device"
     IndexResultType.FILE -> "Files"
     IndexResultType.CALENDAR -> "Calendar"
     IndexResultType.MEDIA -> "Media"
