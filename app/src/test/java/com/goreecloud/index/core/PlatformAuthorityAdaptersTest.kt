@@ -106,6 +106,53 @@ class PlatformAuthorityAdaptersTest {
         assertFalse(evidence.isUnconstrainedAllow())
     }
 
+    @Test
+    fun unavailableGatewayKeepsContactsBlocked() {
+        val authority = ContactsAuthorityProjection.project(
+            androidPermissionGranted = true,
+            snapshot = UnavailableIndexPlatformAuthorityGateway.contactsSnapshot(),
+            now = now,
+        )
+
+        assertTrue(authority.androidPermissionGranted)
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, authority.privacyShield.outcome)
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, authority.identity.outcome)
+        assertFalse(authority.satisfiesAll(setOf(
+            IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+            IndexAuthorityRequirement.PRIVACY_SHIELD,
+            IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+        )))
+    }
+
+    @Test
+    fun acceptedSnapshotCanSatisfyContactsAuthorities() {
+        val snapshot = IndexPlatformAuthoritySnapshot(
+            privacyShieldDecision = PrivacyShieldDecisionEvidence(
+                requestId = "contacts-read-4",
+                outcome = PrivacyShieldDecisionOutcome.ALLOW,
+                evidenceReference = "privacy-shield:evidence:contacts-read-4",
+                expiresAt = now.plusSeconds(300),
+            ),
+            expectedPrivacyShieldRequestId = "contacts-read-4",
+            identityEvidence = validIdentityEvidence(outcome = "authorized"),
+            expectedIdentitySubjectId = "goreecloud-index",
+            identityOutcomeInterpreter = IdentityAuthorizationOutcomeInterpreter { outcome ->
+                if (outcome == "authorized") IndexAuthorityOutcome.ALLOW else null
+            },
+        )
+        val authority = ContactsAuthorityProjection.project(
+            androidPermissionGranted = true,
+            snapshot = snapshot,
+            now = now,
+        )
+
+        assertTrue(authority.satisfiesAll(setOf(
+            IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+            IndexAuthorityRequirement.PRIVACY_SHIELD,
+            IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+        )))
+    }
+
     private fun validIdentityEvidence(
         outcome: String,
         containsReusableCredentials: Boolean = false,
