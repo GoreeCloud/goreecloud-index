@@ -31,7 +31,7 @@ jobs:
       - name: Repository contract validation
         run: python3 scripts/validate_repository.py
 
-      - name: Branding candidate-state validation
+      - name: Approved branding validation
         run: python3 scripts/validate_branding.py
 
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961

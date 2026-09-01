@@ -11,6 +11,7 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/goreecloud_index_icon"
         android:label="${appLabel}"
         android:supportsRtl="true"
         android:theme="@style/Theme.GoreeCloudIndex"
