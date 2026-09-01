@@ -10,12 +10,13 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Record exact source revision
         shell: bash
@@ -30,12 +31,12 @@ jobs:
       - name: Repository contract validation
         run: python3 scripts/validate_repository.py
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
           gradle-version: '9.5.0'
 
@@ -63,7 +64,7 @@ jobs:
           grep -Fq "uses-permission: name='android.permission.READ_CONTACTS'" build-evidence/app-debug.badging.txt
 
       - name: Upload development APK evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: goreecloud-index-development-apk-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
