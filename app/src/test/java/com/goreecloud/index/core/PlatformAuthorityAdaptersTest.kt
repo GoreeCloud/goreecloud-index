@@ -3,6 +3,7 @@ package com.goreecloud.index.core
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,14 +12,10 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun privacyShieldUnconstrainedAllowProjectsAllow() {
+        val request = contactsRequest("contacts-read-1")
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = PrivacyShieldDecisionEvidence(
-                requestId = "contacts-read-1",
-                outcome = PrivacyShieldDecisionOutcome.ALLOW,
-                evidenceReference = "privacy-shield:evidence:contacts-read-1",
-                expiresAt = now.plusSeconds(300),
-            ),
-            expectedRequestId = "contacts-read-1",
+            decision = validPrivacyDecision(request),
+            expectedRequest = request,
             now = now,
         )
 
@@ -28,14 +25,13 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun privacyShieldObligationsRemainConstrained() {
+        val request = contactsRequest("contacts-read-2")
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = PrivacyShieldDecisionEvidence(
-                requestId = "contacts-read-2",
-                outcome = PrivacyShieldDecisionOutcome.ALLOW,
+            decision = validPrivacyDecision(
+                request = request,
                 obligations = listOf("do-not-retain"),
-                evidenceReference = "privacy-shield:evidence:contacts-read-2",
             ),
-            expectedRequestId = "contacts-read-2",
+            expectedRequest = request,
             now = now,
         )
 
@@ -45,19 +41,130 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun privacyShieldStaleEvidenceFailsClosed() {
+        val request = contactsRequest("contacts-read-3")
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = PrivacyShieldDecisionEvidence(
-                requestId = "contacts-read-3",
-                outcome = PrivacyShieldDecisionOutcome.ALLOW,
-                evidenceReference = "privacy-shield:evidence:contacts-read-3",
+            decision = validPrivacyDecision(
+                request = request,
                 expiresAt = now.minusSeconds(1),
             ),
-            expectedRequestId = "contacts-read-3",
+            expectedRequest = request,
             now = now,
         )
 
         assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
         assertFalse(evidence.isUnconstrainedAllow())
+    }
+
+    @Test
+    fun privacyShieldOperationMismatchFailsClosed() {
+        val request = contactsRequest("contacts-read-operation")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(
+                request = request,
+                permittedOperations = setOf("search", "export"),
+            ),
+            expectedRequest = request,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun privacyShieldDestinationMismatchFailsClosed() {
+        val request = contactsRequest("contacts-read-destination")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(
+                request = request,
+                permittedDestinations = setOf("goreecloud-index-ui", "external-service"),
+            ),
+            expectedRequest = request,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun privacyShieldRetentionMismatchFailsClosed() {
+        val request = contactsRequest("contacts-read-retention")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(
+                request = request,
+                retentionMode = "session",
+            ),
+            expectedRequest = request,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun privacyShieldConsentRequirementDoesNotBecomeAllow() {
+        val request = contactsRequest("contacts-read-consent")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(
+                request = request,
+                consentRequired = true,
+            ),
+            expectedRequest = request,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.REQUIRE_USER_DECISION, evidence.outcome)
+        assertFalse(evidence.isUnconstrainedAllow())
+    }
+
+    @Test
+    fun privacyShieldEffectiveScopeConstraintDoesNotBecomeAllow() {
+        val request = contactsRequest("contacts-read-scope")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(
+                request = request,
+                effectiveScopeConstrained = true,
+            ),
+            expectedRequest = request,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.ALLOW_WITH_CONSTRAINTS, evidence.outcome)
+        assertFalse(evidence.isUnconstrainedAllow())
+    }
+
+    @Test
+    fun contactsPrivacyRequestMatchesReviewedManifestScope() {
+        val request = ContactsPrivacyShieldAuthorization.request(
+            requestId = "contacts-manifest-1",
+            resourceClassification = "private-contact-record",
+        )
+
+        assertNotNull(request)
+        requireNotNull(request)
+        assertTrue(request.isExactIndexContactsSearchScope())
+        assertEquals("com.goreecloud.index", request.requesterId)
+        assertEquals("application", request.requesterType)
+        assertEquals("android.contacts", request.resourceId)
+        assertEquals("search", request.operation)
+        assertEquals("universal-search", request.purpose)
+        assertEquals("local", request.processingZone)
+        assertEquals("goreecloud-index-ui", request.destination)
+        assertEquals("none", request.retentionMode)
+        assertFalse(request.externalDisclosure)
+        assertEquals(
+            "goreecloud/privacy-shield.application-manifest.json",
+            request.manifestReference,
+        )
+    }
+
+    @Test
+    fun contactsPrivacyRequestRequiresAuthoritativeClassification() {
+        val request = ContactsPrivacyShieldAuthorization.request(
+            requestId = "contacts-manifest-2",
+            resourceClassification = "",
+        )
+
+        assertEquals(null, request)
     }
 
     @Test
@@ -126,14 +233,10 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun acceptedSnapshotCanSatisfyContactsAuthorities() {
+        val request = contactsRequest("contacts-read-4")
         val snapshot = IndexPlatformAuthoritySnapshot(
-            privacyShieldDecision = PrivacyShieldDecisionEvidence(
-                requestId = "contacts-read-4",
-                outcome = PrivacyShieldDecisionOutcome.ALLOW,
-                evidenceReference = "privacy-shield:evidence:contacts-read-4",
-                expiresAt = now.plusSeconds(300),
-            ),
-            expectedPrivacyShieldRequestId = "contacts-read-4",
+            privacyShieldDecision = validPrivacyDecision(request),
+            expectedPrivacyShieldRequest = request,
             identityEvidence = validIdentityEvidence(outcome = "authorized"),
             expectedIdentitySubjectId = "goreecloud-index",
             identityOutcomeInterpreter = IdentityAuthorizationOutcomeInterpreter { outcome ->
@@ -152,6 +255,39 @@ class PlatformAuthorityAdaptersTest {
             IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
         )))
     }
+
+    private fun contactsRequest(requestId: String): PrivacyShieldAuthorizationRequest =
+        requireNotNull(
+            ContactsPrivacyShieldAuthorization.request(
+                requestId = requestId,
+                resourceClassification = "private-contact-record",
+            ),
+        )
+
+    private fun validPrivacyDecision(
+        request: PrivacyShieldAuthorizationRequest,
+        permittedOperations: Set<String> = setOf(request.operation),
+        permittedDestinations: Set<String> = setOf(request.destination),
+        retentionMode: String = request.retentionMode,
+        effectiveScopeConstrained: Boolean = false,
+        consentRequired: Boolean = false,
+        obligations: List<String> = emptyList(),
+        expiresAt: Instant? = now.plusSeconds(300),
+    ): PrivacyShieldDecisionEvidence = PrivacyShieldDecisionEvidence(
+        decisionId = "decision-${request.requestId}",
+        requestId = request.requestId,
+        outcome = PrivacyShieldDecisionOutcome.ALLOW,
+        reasonCode = "authorized",
+        permittedOperations = permittedOperations,
+        processingZone = request.processingZone,
+        permittedDestinations = permittedDestinations,
+        retentionMode = retentionMode,
+        effectiveScopeConstrained = effectiveScopeConstrained,
+        consentRequired = consentRequired,
+        obligations = obligations,
+        evidenceReference = "privacy-shield:evidence:${request.requestId}",
+        expiresAt = expiresAt,
+    )
 
     private fun validIdentityEvidence(
         outcome: String,
