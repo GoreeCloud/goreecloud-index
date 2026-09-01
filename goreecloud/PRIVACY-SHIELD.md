@@ -56,6 +56,40 @@ Contacts dispatch still requires all of the following:
 
 The shipped Development application currently uses `UnavailableIndexPlatformAuthorityGateway`, so Contacts remains non-dispatchable even when Android permission is granted.
 
+## Exact decision-scope binding
+
+Index now models the Privacy Shield authorization request/decision scope needed for the Contacts provider without inventing a Privacy Shield transport.
+
+A future request producer may construct a Contacts authorization request only when it can supply a non-empty authoritative resource classification. Index supplies the rest of the scope directly from the reviewed application manifest:
+
+- requester: `com.goreecloud.index`, type `application`;
+- resource: `android.contacts`;
+- operation: `search`;
+- purpose: `universal-search`;
+- processing zone: `local`;
+- destination: `goreecloud-index-ui`;
+- retention: `none`;
+- external disclosure: false; and
+- manifest reference: `goreecloud/privacy-shield.application-manifest.json`.
+
+The query text itself is not part of this authorization request model.
+
+A Privacy Shield decision can become an Index `ALLOW` only when it is bound to that exact request and its response remains exactly scoped to the single requested operation, processing zone, destination, and retention mode. Index also requires a non-empty decision identifier, reason code, and evidence reference. Expired evidence fails closed.
+
+The following cannot become an unconstrained `ALLOW`:
+
+- a decision permitting additional operations;
+- a decision permitting additional destinations;
+- a processing-zone mismatch;
+- a retention-mode mismatch;
+- a decision requiring user consent/decision;
+- a decision carrying obligations; or
+- a decision carrying an effective-scope constraint.
+
+Consent-required decisions project to `REQUIRE_USER_DECISION`. Obligated or effective-scope-constrained decisions project to `ALLOW_WITH_CONSTRAINTS`, which remains non-dispatchable until Index has an accepted obligations evaluator. Mismatched or malformed decision scope projects to unavailable and therefore fails closed.
+
+This source-level scope projection does not create live Privacy Shield decision production, consent UX, capability issuance, or adapter acceptance.
+
 ## Acceptance boundary
 
 Source/schema declaration validation can prove that Index has a coherent declared privacy boundary. It cannot prove:
