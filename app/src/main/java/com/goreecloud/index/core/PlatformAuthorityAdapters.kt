@@ -9,9 +9,72 @@ enum class PrivacyShieldDecisionOutcome {
     REQUIRE_USER_DECISION,
 }
 
+data class PrivacyShieldAuthorizationRequest(
+    val requestId: String,
+    val requesterId: String,
+    val requesterType: String,
+    val resourceId: String,
+    val resourceClassification: String,
+    val operation: String,
+    val purpose: String,
+    val processingZone: String,
+    val destination: String,
+    val retentionMode: String,
+    val externalDisclosure: Boolean,
+    val manifestReference: String,
+) {
+    fun isExactIndexContactsSearchScope(): Boolean =
+        validContractText(requestId) &&
+            requesterId == "com.goreecloud.index" &&
+            requesterType == "application" &&
+            resourceId == "android.contacts" &&
+            validContractText(resourceClassification) &&
+            operation == "search" &&
+            purpose == "universal-search" &&
+            processingZone == "local" &&
+            destination == "goreecloud-index-ui" &&
+            retentionMode == "none" &&
+            !externalDisclosure &&
+            manifestReference == "goreecloud/privacy-shield.application-manifest.json"
+}
+
+object ContactsPrivacyShieldAuthorization {
+    fun request(
+        requestId: String,
+        resourceClassification: String,
+    ): PrivacyShieldAuthorizationRequest? {
+        if (!validContractText(requestId) || !validContractText(resourceClassification)) {
+            return null
+        }
+
+        return PrivacyShieldAuthorizationRequest(
+            requestId = requestId,
+            requesterId = "com.goreecloud.index",
+            requesterType = "application",
+            resourceId = "android.contacts",
+            resourceClassification = resourceClassification,
+            operation = "search",
+            purpose = "universal-search",
+            processingZone = "local",
+            destination = "goreecloud-index-ui",
+            retentionMode = "none",
+            externalDisclosure = false,
+            manifestReference = "goreecloud/privacy-shield.application-manifest.json",
+        )
+    }
+}
+
 data class PrivacyShieldDecisionEvidence(
+    val decisionId: String = "",
     val requestId: String,
     val outcome: PrivacyShieldDecisionOutcome,
+    val reasonCode: String = "",
+    val permittedOperations: Set<String> = emptySet(),
+    val processingZone: String = "",
+    val permittedDestinations: Set<String> = emptySet(),
+    val retentionMode: String = "",
+    val effectiveScopeConstrained: Boolean = false,
+    val consentRequired: Boolean = false,
     val obligations: List<String> = emptyList(),
     val evidenceReference: String? = null,
     val expiresAt: Instant? = null,
@@ -20,26 +83,43 @@ data class PrivacyShieldDecisionEvidence(
 object PrivacyShieldAuthorityAdapter {
     fun evaluate(
         decision: PrivacyShieldDecisionEvidence?,
-        expectedRequestId: String,
+        expectedRequest: PrivacyShieldAuthorizationRequest?,
         now: Instant = Instant.now(),
     ): IndexAuthorityEvidence {
-        if (decision == null || expectedRequestId.isBlank()) {
+        val expectedRequestId = expectedRequest?.requestId.orEmpty()
+        if (decision == null || expectedRequest == null || !expectedRequest.isExactIndexContactsSearchScope()) {
             return IndexAuthorityEvidence.unavailable()
         }
         if (decision.requestId != expectedRequestId || decision.evidenceReference.isNullOrBlank()) {
+            return IndexAuthorityEvidence.unavailable()
+        }
+        if (
+            !validContractText(decision.decisionId) ||
+            !validContractText(decision.reasonCode) ||
+            decision.processingZone.isBlank() ||
+            decision.retentionMode.isBlank()
+        ) {
             return IndexAuthorityEvidence.unavailable()
         }
         if (decision.expiresAt?.isAfter(now) == false) {
             return IndexAuthorityEvidence.unavailable()
         }
 
+        val exactScope =
+            decision.permittedOperations == setOf(expectedRequest.operation) &&
+                decision.processingZone == expectedRequest.processingZone &&
+                decision.permittedDestinations == setOf(expectedRequest.destination) &&
+                decision.retentionMode == expectedRequest.retentionMode
+        if (!exactScope) {
+            return IndexAuthorityEvidence.unavailable()
+        }
+
         val projectedOutcome = when (decision.outcome) {
-            PrivacyShieldDecisionOutcome.ALLOW -> {
-                if (decision.obligations.isEmpty()) {
-                    IndexAuthorityOutcome.ALLOW
-                } else {
+            PrivacyShieldDecisionOutcome.ALLOW -> when {
+                decision.consentRequired -> IndexAuthorityOutcome.REQUIRE_USER_DECISION
+                decision.effectiveScopeConstrained || decision.obligations.isNotEmpty() ->
                     IndexAuthorityOutcome.ALLOW_WITH_CONSTRAINTS
-                }
+                else -> IndexAuthorityOutcome.ALLOW
             }
             PrivacyShieldDecisionOutcome.DENY -> IndexAuthorityOutcome.DENY
             PrivacyShieldDecisionOutcome.ALLOW_WITH_CONSTRAINTS ->
@@ -122,7 +202,7 @@ object IdentityAuthorityAdapter {
 
 data class IndexPlatformAuthoritySnapshot(
     val privacyShieldDecision: PrivacyShieldDecisionEvidence? = null,
-    val expectedPrivacyShieldRequestId: String = "",
+    val expectedPrivacyShieldRequest: PrivacyShieldAuthorizationRequest? = null,
     val identityEvidence: IdentityAuthorizationEvidence? = null,
     val expectedIdentitySubjectId: String = "",
     val identityOutcomeInterpreter: IdentityAuthorizationOutcomeInterpreter =
@@ -146,7 +226,7 @@ object ContactsAuthorityProjection {
         androidPermissionGranted = androidPermissionGranted,
         privacyShield = PrivacyShieldAuthorityAdapter.evaluate(
             decision = snapshot.privacyShieldDecision,
-            expectedRequestId = snapshot.expectedPrivacyShieldRequestId,
+            expectedRequest = snapshot.expectedPrivacyShieldRequest,
             now = now,
         ),
         identity = IdentityAuthorityAdapter.evaluate(
@@ -157,3 +237,8 @@ object ContactsAuthorityProjection {
         ),
     )
 }
+
+private fun validContractText(value: String): Boolean =
+    value.isNotBlank() &&
+        value.length <= 256 &&
+        value.none { character -> character.code < 0x20 || character.code == 0x7f }
