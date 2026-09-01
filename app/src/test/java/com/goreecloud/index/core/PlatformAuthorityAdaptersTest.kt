@@ -13,9 +13,11 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldUnconstrainedAllowProjectsAllow() {
         val request = contactsRequest("contacts-read-1")
+        val decision = validPrivacyDecision(request)
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(request),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -24,14 +26,63 @@ class PlatformAuthorityAdaptersTest {
     }
 
     @Test
+    fun privacyShieldMissingEnvelopeFailsClosed() {
+        val request = contactsRequest("contacts-read-no-envelope")
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = validPrivacyDecision(request),
+            expectedRequest = request,
+            envelope = null,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+        assertFalse(evidence.isUnconstrainedAllow())
+    }
+
+    @Test
+    fun privacyShieldWrongProducerRepositoryFailsClosed() {
+        val request = contactsRequest("contacts-read-wrong-producer")
+        val decision = validPrivacyDecision(request)
+        val envelope = privacyEnvelope(request, decision).copy(
+            producer = privacyEnvelope(request, decision).producer.copy(
+                repository = "GoreeCloud/not-privacy-shield",
+            ),
+        )
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = decision,
+            expectedRequest = request,
+            envelope = envelope,
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun privacyShieldSensitiveEnvelopeFailsClosed() {
+        val request = contactsRequest("contacts-read-sensitive-envelope")
+        val decision = validPrivacyDecision(request)
+        val evidence = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = decision,
+            expectedRequest = request,
+            envelope = privacyEnvelope(request, decision).copy(containsUserContent = true),
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
     fun privacyShieldObligationsRemainConstrained() {
         val request = contactsRequest("contacts-read-2")
+        val decision = validPrivacyDecision(
+            request = request,
+            obligations = listOf("do-not-retain"),
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                obligations = listOf("do-not-retain"),
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -42,12 +93,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldStaleEvidenceFailsClosed() {
         val request = contactsRequest("contacts-read-3")
+        val decision = validPrivacyDecision(
+            request = request,
+            expiresAt = now.minusSeconds(1),
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                expiresAt = now.minusSeconds(1),
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -58,12 +111,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldOperationMismatchFailsClosed() {
         val request = contactsRequest("contacts-read-operation")
+        val decision = validPrivacyDecision(
+            request = request,
+            permittedOperations = setOf("search", "export"),
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                permittedOperations = setOf("search", "export"),
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -73,12 +128,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldDestinationMismatchFailsClosed() {
         val request = contactsRequest("contacts-read-destination")
+        val decision = validPrivacyDecision(
+            request = request,
+            permittedDestinations = setOf("goreecloud-index-ui", "external-service"),
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                permittedDestinations = setOf("goreecloud-index-ui", "external-service"),
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -88,12 +145,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldRetentionMismatchFailsClosed() {
         val request = contactsRequest("contacts-read-retention")
+        val decision = validPrivacyDecision(
+            request = request,
+            retentionMode = "session",
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                retentionMode = "session",
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -103,12 +162,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldConsentRequirementDoesNotBecomeAllow() {
         val request = contactsRequest("contacts-read-consent")
+        val decision = validPrivacyDecision(
+            request = request,
+            consentRequired = true,
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                consentRequired = true,
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -119,12 +180,14 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun privacyShieldEffectiveScopeConstraintDoesNotBecomeAllow() {
         val request = contactsRequest("contacts-read-scope")
+        val decision = validPrivacyDecision(
+            request = request,
+            effectiveScopeConstrained = true,
+        )
         val evidence = PrivacyShieldAuthorityAdapter.evaluate(
-            decision = validPrivacyDecision(
-                request = request,
-                effectiveScopeConstrained = true,
-            ),
+            decision = decision,
             expectedRequest = request,
+            envelope = privacyEnvelope(request, decision),
             now = now,
         )
 
@@ -169,9 +232,12 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun identityAuthorizationUsesIdentityOwnedInterpreter() {
+        val identity = validIdentityEvidence(outcome = "authorized")
         val evidence = IdentityAuthorityAdapter.evaluate(
-            evidence = validIdentityEvidence(outcome = "authorized"),
+            evidence = identity,
+            expectedSubjectKind = "application",
             expectedSubjectId = "goreecloud-index",
+            envelope = identityEnvelope(identity),
             outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter { outcome ->
                 if (outcome == "authorized") IndexAuthorityOutcome.ALLOW else null
             },
@@ -183,10 +249,68 @@ class PlatformAuthorityAdaptersTest {
     }
 
     @Test
-    fun identityUnknownOutcomeFailsClosed() {
+    fun identityMissingEnvelopeFailsClosed() {
         val evidence = IdentityAuthorityAdapter.evaluate(
-            evidence = validIdentityEvidence(outcome = "identity-specific-future-state"),
+            evidence = validIdentityEvidence(outcome = "authorized"),
+            expectedSubjectKind = "application",
             expectedSubjectId = "goreecloud-index",
+            envelope = null,
+            outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter {
+                IndexAuthorityOutcome.ALLOW
+            },
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun identityWrongProducerRepositoryFailsClosed() {
+        val identity = validIdentityEvidence(outcome = "authorized")
+        val envelope = identityEnvelope(identity).copy(
+            producer = identityEnvelope(identity).producer.copy(
+                repository = "GoreeCloud/not-identity",
+            ),
+        )
+        val evidence = IdentityAuthorityAdapter.evaluate(
+            evidence = identity,
+            expectedSubjectKind = "application",
+            expectedSubjectId = "goreecloud-index",
+            envelope = envelope,
+            outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter {
+                IndexAuthorityOutcome.ALLOW
+            },
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun identityEnvelopeOutcomeMismatchFailsClosed() {
+        val identity = validIdentityEvidence(outcome = "authorized")
+        val evidence = IdentityAuthorityAdapter.evaluate(
+            evidence = identity,
+            expectedSubjectKind = "application",
+            expectedSubjectId = "goreecloud-index",
+            envelope = identityEnvelope(identity).copy(outcome = "different-outcome"),
+            outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter {
+                IndexAuthorityOutcome.ALLOW
+            },
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun identityUnknownOutcomeFailsClosed() {
+        val identity = validIdentityEvidence(outcome = "identity-specific-future-state")
+        val evidence = IdentityAuthorityAdapter.evaluate(
+            evidence = identity,
+            expectedSubjectKind = "application",
+            expectedSubjectId = "goreecloud-index",
+            envelope = identityEnvelope(identity),
             outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter { null },
             now = now,
         )
@@ -197,12 +321,15 @@ class PlatformAuthorityAdaptersTest {
 
     @Test
     fun identityMinimizationViolationFailsClosed() {
+        val identity = validIdentityEvidence(
+            outcome = "authorized",
+            containsReusableCredentials = true,
+        )
         val evidence = IdentityAuthorityAdapter.evaluate(
-            evidence = validIdentityEvidence(
-                outcome = "authorized",
-                containsReusableCredentials = true,
-            ),
+            evidence = identity,
+            expectedSubjectKind = "application",
             expectedSubjectId = "goreecloud-index",
+            envelope = identityEnvelope(identity),
             outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter {
                 IndexAuthorityOutcome.ALLOW
             },
@@ -211,6 +338,54 @@ class PlatformAuthorityAdaptersTest {
 
         assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
         assertFalse(evidence.isUnconstrainedAllow())
+    }
+
+    @Test
+    fun identityExpiredEnvelopeFailsClosed() {
+        val identity = validIdentityEvidence(
+            outcome = "authorized",
+            validUntil = now.minusSeconds(1),
+        )
+        val evidence = IdentityAuthorityAdapter.evaluate(
+            evidence = identity,
+            expectedSubjectKind = "application",
+            expectedSubjectId = "goreecloud-index",
+            envelope = identityEnvelope(identity),
+            outcomeInterpreter = IdentityAuthorizationOutcomeInterpreter {
+                IndexAuthorityOutcome.ALLOW
+            },
+            now = now,
+        )
+
+        assertEquals(IndexAuthorityOutcome.UNAVAILABLE, evidence.outcome)
+    }
+
+    @Test
+    fun meshEnvelopeRejectsMalformedProducerRevision() {
+        val identity = validIdentityEvidence(outcome = "authorized")
+        val envelope = identityEnvelope(identity).copy(
+            producer = identityEnvelope(identity).producer.copy(revision = "not-a-git-sha"),
+        )
+        assertFalse(
+            MeshEvidenceEnvelopeValidator.validate(
+                envelope = envelope,
+                expectation = identityExpectation(identity),
+                now = now,
+            ),
+        )
+    }
+
+    @Test
+    fun meshEnvelopeRejectsMalformedPayloadDigest() {
+        val identity = validIdentityEvidence(outcome = "authorized")
+        val envelope = identityEnvelope(identity).copy(payloadDigest = "sha256:not-a-digest")
+        assertFalse(
+            MeshEvidenceEnvelopeValidator.validate(
+                envelope = envelope,
+                expectation = identityExpectation(identity),
+                now = now,
+            ),
+        )
     }
 
     @Test
@@ -234,11 +409,16 @@ class PlatformAuthorityAdaptersTest {
     @Test
     fun acceptedSnapshotCanSatisfyContactsAuthorities() {
         val request = contactsRequest("contacts-read-4")
+        val privacyDecision = validPrivacyDecision(request)
+        val identity = validIdentityEvidence(outcome = "authorized")
         val snapshot = IndexPlatformAuthoritySnapshot(
-            privacyShieldDecision = validPrivacyDecision(request),
+            privacyShieldDecision = privacyDecision,
             expectedPrivacyShieldRequest = request,
-            identityEvidence = validIdentityEvidence(outcome = "authorized"),
+            privacyShieldEnvelope = privacyEnvelope(request, privacyDecision),
+            identityEvidence = identity,
+            expectedIdentitySubjectKind = "application",
             expectedIdentitySubjectId = "goreecloud-index",
+            identityEnvelope = identityEnvelope(identity),
             identityOutcomeInterpreter = IdentityAuthorizationOutcomeInterpreter { outcome ->
                 if (outcome == "authorized") IndexAuthorityOutcome.ALLOW else null
             },
@@ -285,25 +465,103 @@ class PlatformAuthorityAdaptersTest {
         effectiveScopeConstrained = effectiveScopeConstrained,
         consentRequired = consentRequired,
         obligations = obligations,
-        evidenceReference = "privacy-shield:evidence:${request.requestId}",
+        evidenceReference = "privacy-shield://evidence/${request.requestId}",
         expiresAt = expiresAt,
+    )
+
+    private fun privacyEnvelope(
+        request: PrivacyShieldAuthorizationRequest,
+        decision: PrivacyShieldDecisionEvidence,
+    ): MeshEvidenceEnvelope = MeshEvidenceEnvelope(
+        version = "goreecloud.evidence-envelope.v1",
+        id = "privacy-shield-${decision.decisionId}",
+        producer = MeshEvidenceProducer(
+            system = "privacy-shield",
+            repository = "GoreeCloud/goreecloud-privacy-shield",
+            revision = "a".repeat(40),
+            contract = "contracts/privacy-shield.decision.schema.json",
+        ),
+        authorityDomain = "privacy",
+        subject = MeshEvidenceSubject(
+            kind = "resource",
+            id = request.resourceId,
+        ),
+        assertion = "privacy-decision",
+        outcome = decision.outcome.name,
+        source = requireNotNull(decision.evidenceReference),
+        observedAt = now.minusSeconds(30),
+        validUntil = decision.expiresAt ?: now.plusSeconds(300),
+        dataClass = "derived",
+        payloadDigest = "sha256:" + "b".repeat(64),
+        containsUserContent = false,
+        containsSecretMaterial = false,
     )
 
     private fun validIdentityEvidence(
         outcome: String,
         containsReusableCredentials: Boolean = false,
+        validUntil: Instant = now.plusSeconds(300),
     ): IdentityAuthorizationEvidence = IdentityAuthorizationEvidence(
         contract = "goreecloud.identity-evidence.v1",
         authorityDomain = "authorization",
         assertion = "authorization-decision",
         outcome = outcome,
+        subjectKind = "application",
         subjectId = "goreecloud-index",
+        subjectScope = "contacts-search",
         source = "identity:evidence:index-contacts",
         observedAt = now.minusSeconds(30),
-        validUntil = now.plusSeconds(300),
+        validUntil = validUntil,
+        dataClass = "derived",
+        payloadDigest = "sha256:" + "c".repeat(64),
         containsUserContent = false,
         containsSecretMaterial = false,
         containsReusableCredentials = containsReusableCredentials,
         containsRawProfileAttributes = false,
+    )
+
+    private fun identityEnvelope(
+        evidence: IdentityAuthorizationEvidence,
+    ): MeshEvidenceEnvelope = MeshEvidenceEnvelope(
+        version = "goreecloud.evidence-envelope.v1",
+        id = "identity-index-contacts-authorization",
+        producer = MeshEvidenceProducer(
+            system = "goreecloud-identity",
+            repository = "GoreeCloud/goreecloud-identity",
+            revision = "d".repeat(40),
+            contract = "contracts/identity.evidence.schema.json",
+        ),
+        authorityDomain = evidence.authorityDomain,
+        subject = MeshEvidenceSubject(
+            kind = evidence.subjectKind,
+            id = evidence.subjectId,
+            scope = evidence.subjectScope,
+        ),
+        assertion = evidence.assertion,
+        outcome = evidence.outcome,
+        source = evidence.source,
+        observedAt = evidence.observedAt,
+        validUntil = evidence.validUntil,
+        dataClass = evidence.dataClass,
+        payloadDigest = evidence.payloadDigest,
+        containsUserContent = false,
+        containsSecretMaterial = false,
+    )
+
+    private fun identityExpectation(
+        evidence: IdentityAuthorizationEvidence,
+    ): MeshEvidenceExpectation = MeshEvidenceExpectation(
+        producerSystem = "goreecloud-identity",
+        repository = "GoreeCloud/goreecloud-identity",
+        contract = "contracts/identity.evidence.schema.json",
+        authorityDomain = evidence.authorityDomain,
+        subjectKind = evidence.subjectKind,
+        subjectId = evidence.subjectId,
+        subjectScope = evidence.subjectScope,
+        assertion = evidence.assertion,
+        outcome = evidence.outcome,
+        source = evidence.source,
+        observedAt = evidence.observedAt,
+        validUntil = evidence.validUntil,
     )
 }
