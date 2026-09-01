@@ -119,3 +119,41 @@ object IdentityAuthorityAdapter {
         )
     }
 }
+
+data class IndexPlatformAuthoritySnapshot(
+    val privacyShieldDecision: PrivacyShieldDecisionEvidence? = null,
+    val expectedPrivacyShieldRequestId: String = "",
+    val identityEvidence: IdentityAuthorizationEvidence? = null,
+    val expectedIdentitySubjectId: String = "",
+    val identityOutcomeInterpreter: IdentityAuthorizationOutcomeInterpreter =
+        IdentityAuthorizationOutcomeInterpreter { null },
+)
+
+fun interface IndexPlatformAuthorityGateway {
+    fun contactsSnapshot(): IndexPlatformAuthoritySnapshot
+}
+
+object UnavailableIndexPlatformAuthorityGateway : IndexPlatformAuthorityGateway {
+    override fun contactsSnapshot(): IndexPlatformAuthoritySnapshot = IndexPlatformAuthoritySnapshot()
+}
+
+object ContactsAuthorityProjection {
+    fun project(
+        androidPermissionGranted: Boolean,
+        snapshot: IndexPlatformAuthoritySnapshot,
+        now: Instant = Instant.now(),
+    ): IndexProviderAuthority = IndexProviderAuthority(
+        androidPermissionGranted = androidPermissionGranted,
+        privacyShield = PrivacyShieldAuthorityAdapter.evaluate(
+            decision = snapshot.privacyShieldDecision,
+            expectedRequestId = snapshot.expectedPrivacyShieldRequestId,
+            now = now,
+        ),
+        identity = IdentityAuthorityAdapter.evaluate(
+            evidence = snapshot.identityEvidence,
+            expectedSubjectId = snapshot.expectedIdentitySubjectId,
+            outcomeInterpreter = snapshot.identityOutcomeInterpreter,
+            now = now,
+        ),
+    )
+}
