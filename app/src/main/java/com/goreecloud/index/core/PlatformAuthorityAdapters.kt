@@ -84,6 +84,7 @@ object PrivacyShieldAuthorityAdapter {
     fun evaluate(
         decision: PrivacyShieldDecisionEvidence?,
         expectedRequest: PrivacyShieldAuthorizationRequest?,
+        envelope: MeshEvidenceEnvelope?,
         now: Instant = Instant.now(),
     ): IndexAuthorityEvidence {
         val expectedRequestId = expectedRequest?.requestId.orEmpty()
@@ -114,6 +115,26 @@ object PrivacyShieldAuthorityAdapter {
             return IndexAuthorityEvidence.unavailable()
         }
 
+        val envelopeValid = MeshEvidenceEnvelopeValidator.validate(
+            envelope = envelope,
+            expectation = MeshEvidenceExpectation(
+                producerSystem = "privacy-shield",
+                repository = "GoreeCloud/goreecloud-privacy-shield",
+                contract = "contracts/privacy-shield.decision.schema.json",
+                authorityDomain = "privacy",
+                subjectKind = "resource",
+                subjectId = expectedRequest.resourceId,
+                assertion = "privacy-decision",
+                outcome = decision.outcome.name,
+                source = decision.evidenceReference,
+                validUntil = decision.expiresAt,
+            ),
+            now = now,
+        ) && MeshEvidenceEnvelopeValidator.isCurrent(envelope, now)
+        if (!envelopeValid) {
+            return IndexAuthorityEvidence.unavailable()
+        }
+
         val projectedOutcome = when (decision.outcome) {
             PrivacyShieldDecisionOutcome.ALLOW -> when {
                 decision.consentRequired -> IndexAuthorityOutcome.REQUIRE_USER_DECISION
@@ -140,10 +161,14 @@ data class IdentityAuthorizationEvidence(
     val authorityDomain: String,
     val assertion: String,
     val outcome: String,
+    val subjectKind: String,
     val subjectId: String,
+    val subjectScope: String = "",
     val source: String,
     val observedAt: Instant,
     val validUntil: Instant,
+    val dataClass: String = "derived",
+    val payloadDigest: String? = null,
     val containsUserContent: Boolean,
     val containsSecretMaterial: Boolean,
     val containsReusableCredentials: Boolean,
@@ -161,17 +186,20 @@ object IdentityAuthorityAdapter {
 
     fun evaluate(
         evidence: IdentityAuthorizationEvidence?,
+        expectedSubjectKind: String,
         expectedSubjectId: String,
+        envelope: MeshEvidenceEnvelope?,
         outcomeInterpreter: IdentityAuthorizationOutcomeInterpreter,
         now: Instant = Instant.now(),
     ): IndexAuthorityEvidence {
-        if (evidence == null || expectedSubjectId.isBlank()) {
+        if (evidence == null || expectedSubjectKind.isBlank() || expectedSubjectId.isBlank()) {
             return IndexAuthorityEvidence.unavailable()
         }
         if (
             evidence.contract != IDENTITY_EVIDENCE_CONTRACT ||
             evidence.authorityDomain != AUTHORIZATION_DOMAIN ||
             evidence.assertion != AUTHORIZATION_ASSERTION ||
+            evidence.subjectKind != expectedSubjectKind ||
             evidence.subjectId != expectedSubjectId ||
             evidence.source.isBlank() ||
             evidence.outcome.isBlank()
@@ -190,6 +218,31 @@ object IdentityAuthorityAdapter {
             return IndexAuthorityEvidence.unavailable()
         }
 
+        val envelopeValid = MeshEvidenceEnvelopeValidator.validate(
+            envelope = envelope,
+            expectation = MeshEvidenceExpectation(
+                producerSystem = "goreecloud-identity",
+                repository = "GoreeCloud/goreecloud-identity",
+                contract = "contracts/identity.evidence.schema.json",
+                authorityDomain = AUTHORIZATION_DOMAIN,
+                subjectKind = evidence.subjectKind,
+                subjectId = evidence.subjectId,
+                subjectScope = evidence.subjectScope,
+                assertion = AUTHORIZATION_ASSERTION,
+                outcome = evidence.outcome,
+                source = evidence.source,
+                observedAt = evidence.observedAt,
+                validUntil = evidence.validUntil,
+            ),
+            now = now,
+        ) &&
+            MeshEvidenceEnvelopeValidator.isCurrent(envelope, now) &&
+            envelope?.dataClass == evidence.dataClass &&
+            envelope.payloadDigest == evidence.payloadDigest
+        if (!envelopeValid) {
+            return IndexAuthorityEvidence.unavailable()
+        }
+
         val projectedOutcome = outcomeInterpreter.interpret(evidence.outcome)
             ?: return IndexAuthorityEvidence.unavailable()
 
@@ -203,8 +256,11 @@ object IdentityAuthorityAdapter {
 data class IndexPlatformAuthoritySnapshot(
     val privacyShieldDecision: PrivacyShieldDecisionEvidence? = null,
     val expectedPrivacyShieldRequest: PrivacyShieldAuthorizationRequest? = null,
+    val privacyShieldEnvelope: MeshEvidenceEnvelope? = null,
     val identityEvidence: IdentityAuthorizationEvidence? = null,
+    val expectedIdentitySubjectKind: String = "",
     val expectedIdentitySubjectId: String = "",
+    val identityEnvelope: MeshEvidenceEnvelope? = null,
     val identityOutcomeInterpreter: IdentityAuthorizationOutcomeInterpreter =
         IdentityAuthorizationOutcomeInterpreter { null },
 )
@@ -227,11 +283,14 @@ object ContactsAuthorityProjection {
         privacyShield = PrivacyShieldAuthorityAdapter.evaluate(
             decision = snapshot.privacyShieldDecision,
             expectedRequest = snapshot.expectedPrivacyShieldRequest,
+            envelope = snapshot.privacyShieldEnvelope,
             now = now,
         ),
         identity = IdentityAuthorityAdapter.evaluate(
             evidence = snapshot.identityEvidence,
+            expectedSubjectKind = snapshot.expectedIdentitySubjectKind,
             expectedSubjectId = snapshot.expectedIdentitySubjectId,
+            envelope = snapshot.identityEnvelope,
             outcomeInterpreter = snapshot.identityOutcomeInterpreter,
             now = now,
         ),
