@@ -4,81 +4,73 @@ GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing lay
 
 ## Status
 
-**Release lifecycle: Development.**
+**Release lifecycle: Development.** GoreeCloud Index is not Stable or production accepted.
 
-The native Android `0.2.0-dev` asynchronous provider-runtime foundation is now accepted on authoritative `main` at `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` after pull request #4 passed exact-candidate validation and its post-merge exact-main workflow completed successfully.
+The current accepted source/build baseline is authoritative `main` commit `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication.
 
-GoreeCloud Index is **not Stable or production accepted**. Representative-device behavior, formal accessibility/Glaze UI conformance, platform-runtime integrations, controlled production signing/deployment, and Stable qualification remain separate gates.
+This branch advances source to `0.3.0-dev` with a second **Contacts · On-device** provider and a fail-closed authority model. The branch is development source until its own exact-head CI and merge acceptance complete.
 
-## Current Accepted Development Capability
+## Accepted Development Capability
 
-The current Android Development source can:
+Accepted `main` can:
 
 - Browse and search launcher-visible applications on the current device.
-- Match application labels and package names with deterministic relevance scoring.
-- Preserve exact Android launcher-component identity for result handoff.
 - Dispatch eligible providers concurrently with Kotlin structured concurrency.
 - Cancel superseded query work through the Compose query lifecycle.
-- Apply bounded provider timeouts and distinguish `FAILED` from `TIMED_OUT` provider issues.
+- Apply bounded provider timeouts and distinguish `FAILED` from `TIMED_OUT` issues.
 - Preserve healthy-provider results when another eligible provider fails or times out.
 - Rank before provider-scoped deduplication.
-- Fail closed through `IndexExecutionContext` using exact provider allowlisting and `localOnly` processing gating.
+- Fail closed through exact provider allowlisting and `localOnly` processing gating.
 - Expose the Launcher→Index `com.goreecloud.index.action.SEARCH` handoff.
-- Present searching, browse, no-match, provider-failure, provider-timeout, result, and launch-failure states.
-- Keep the current Applications provider local-only without Android `INTERNET` or unrestricted `QUERY_ALL_PACKAGES` permission.
 
-`IndexExecutionContext` is an internal execution-eligibility guard. It is **not** accepted Privacy Shield consent/permission logic and is **not** accepted GoreeCloud Identity authorization.
+## Contacts Authority Development Slice
 
-## Current Provider
+The current branch adds source for a permission-aware Contacts provider without treating source presence as platform acceptance.
 
-The only implemented provider remains **Applications · On-device**. It uses `ACTION_MAIN` plus `CATEGORY_LAUNCHER`, declares `LOCAL` processing, preserves exact launcher-component identity, and uses a provisional 500 ms Development timeout. The timeout is a safety bound, not a representative-device latency SLA.
+- Android ContactsProvider remains authoritative for contact records.
+- The provider uses `Contacts.CONTENT_FILTER_URI` and does not enumerate contacts for a blank query.
+- Only contact ID/lookup key/display name are read; phone and email fields are not requested by this provider slice.
+- Results preserve an on-device source label and a typed contact-view action.
+- Contact actions are validated as `content://com.android.contacts/contacts/...` before handoff.
+- The provider declares `LOCAL` processing and a provisional 750 ms Development timeout.
+- Dispatch requires Android `READ_CONTACTS` permission **and** unconstrained Privacy Shield decision evidence **and** GoreeCloud Identity authorization evidence.
+- Missing, denied, user-decision-required, unavailable, or `ALLOW_WITH_CONSTRAINTS` evidence fails closed and produces `AUTHORIZATION_REQUIRED`; the query is not sent to Contacts.
+- The application does not fabricate Privacy Shield or Identity approval. Current MainActivity supplies those platform decisions as unavailable, so Contacts remains authority-gated until real adapters are implemented and accepted.
 
-## Planned Search Sources
-
-- Files and folders.
-- Contacts.
-- Calendar events.
-- Media and settings where approved provider contracts exist.
-- First-party GoreeCloud applications and services.
-- Connected GoreeCloud devices and authorized remote resources.
-- GoreeCloud extensions.
-- Optional third-party services explicitly connected and authorized by the user.
-- Internet results delegated to GoreeCloud Search.
-
-Additional providers require their own source-authority, permission, privacy, identity, security, retention, failure, and acceptance evidence before activation.
+`IndexExecutionContext` remains an application execution gate. The new authority-evidence model consumes platform decisions; it does not make Index the Privacy Shield or Identity authority.
 
 ## Product Boundary
 
 **GoreeCloud Index** is the universal search/indexing authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications and services remain authoritative for their own resources.
 
-## GoreeCloud Platform Requirements
+## Platform Requirements
 
-The current UI targets **Glaze UI 2.1.0**. Formal application-specific Glaze UI conformance remains pending. Accepted runtime integration also remains pending for **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, and GoreeCloud Identity**.
+The UI targets **Glaze UI 2.1.0**. Formal consumer conformance remains pending. Runtime acceptance also remains pending for **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, and GoreeCloud Identity**.
 
 ## Android Development Identity
 
 - Production application ID: `com.goreecloud.index`
 - Development application ID: `com.goreecloud.index.dev`
 - Label: `GoreeCloud Index Dev`
-- Version: `0.2.0-dev`
-- Version code: `2`
+- Branch version: `0.3.0-dev`, version code `3`
+- Accepted-main version: `0.2.0-dev`, version code `2`
 - Minimum API: 26
 - Compile API: 37
 - Target API: 36
 
-## Validation Evidence
+## Accepted Main Evidence
 
-Pull request #4 exact candidate `d8b563705ccf1d05444df18e7a593a454d4c4103` passed workflow run `33429486374` before merge.
-
-Authoritative main commit `e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9` then passed exact-main workflow run `33429792389`, including repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication.
-
-Accepted-main Development APK SHA-256: `a2605bb1e993dd027afc68b0900b60f2fcf9567ec59399e5a02a178af1cc815f`.
-
-Accepted-main artifact: `9772201920`, `goreecloud-index-development-apk-e0576bd39e3793bf62c5b4b3f0b887ded4a6d0f9`.
-
-Artifact archive digest: `sha256:0aa9c334b980f558fa983ef059f4fc7a73cf57fdf8c82d39ca2414ec60c77b75`.
+- Source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
+- Workflow: `33431294298`
+- APK SHA-256: `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
+- Artifact: `9772740479`
+- Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
 
 This is Development source/build evidence only.
+
+## Planned Search Sources
+
+Files/folders, calendar, media/settings, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search remain separately gated work.
 
 ## Documentation
 
