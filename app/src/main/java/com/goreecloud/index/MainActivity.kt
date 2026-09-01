@@ -12,13 +12,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
+import com.goreecloud.index.core.ContactsAuthorityProjection
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
-import com.goreecloud.index.core.IndexAuthorityEvidence
 import com.goreecloud.index.core.IndexExecutionContext
-import com.goreecloud.index.core.IndexProviderAuthority
+import com.goreecloud.index.core.IndexPlatformAuthorityGateway
 import com.goreecloud.index.core.IndexQueryEngine
 import com.goreecloud.index.core.IndexResult
+import com.goreecloud.index.core.UnavailableIndexPlatformAuthorityGateway
 import com.goreecloud.index.provider.apps.InstalledAppsProvider
 import com.goreecloud.index.provider.contacts.ContactsProvider
 import com.goreecloud.index.ui.IndexRoot
@@ -28,6 +29,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var appsProvider: InstalledAppsProvider
     private lateinit var contactsProvider: ContactsProvider
     private lateinit var queryEngine: IndexQueryEngine
+    private val platformAuthorityGateway: IndexPlatformAuthorityGateway =
+        UnavailableIndexPlatformAuthorityGateway
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,23 +63,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun executionContext(): IndexExecutionContext = IndexExecutionContext(
-        allowedProviderIds = setOf(
-            GoreeCloudIndexContract.PROVIDER_APPS,
-            GoreeCloudIndexContract.PROVIDER_CONTACTS,
-        ),
-        localOnly = true,
-        providerAuthorities = mapOf(
-            GoreeCloudIndexContract.PROVIDER_CONTACTS to IndexProviderAuthority(
-                androidPermissionGranted = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_CONTACTS,
-                ) == PackageManager.PERMISSION_GRANTED,
-                privacyShield = IndexAuthorityEvidence.unavailable(),
-                identity = IndexAuthorityEvidence.unavailable(),
+    private fun executionContext(): IndexExecutionContext {
+        val contactsAuthority = ContactsAuthorityProjection.project(
+            androidPermissionGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_CONTACTS,
+            ) == PackageManager.PERMISSION_GRANTED,
+            snapshot = platformAuthorityGateway.contactsSnapshot(),
+        )
+
+        return IndexExecutionContext(
+            allowedProviderIds = setOf(
+                GoreeCloudIndexContract.PROVIDER_APPS,
+                GoreeCloudIndexContract.PROVIDER_CONTACTS,
             ),
-        ),
-    )
+            localOnly = true,
+            providerAuthorities = mapOf(
+                GoreeCloudIndexContract.PROVIDER_CONTACTS to contactsAuthority,
+            ),
+        )
+    }
 
     private fun openResult(result: IndexResult) {
         when (val action = result.action) {
