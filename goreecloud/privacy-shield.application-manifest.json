@@ -1,0 +1,33 @@
+{
+  "manifest_version": 1,
+  "application_id": "com.goreecloud.index",
+  "display_name": "GoreeCloud Index",
+  "purposes": [
+    {
+      "id": "universal-search",
+      "description": "Return authorized local resources that match an explicit user search query."
+    }
+  ],
+  "resources": [
+    {
+      "resource": "android.launcher-applications",
+      "purposes": ["universal-search"],
+      "operations": ["search"],
+      "processing_zones": ["local"],
+      "destinations": ["goreecloud-index-ui"],
+      "retention": {"mode": "none"},
+      "ai_usage": false,
+      "external_processors": []
+    },
+    {
+      "resource": "android.contacts",
+      "purposes": ["universal-search"],
+      "operations": ["search"],
+      "processing_zones": ["local"],
+      "destinations": ["goreecloud-index-ui"],
+      "retention": {"mode": "none"},
+      "ai_usage": false,
+      "external_processors": []
+    }
+  ]
+}

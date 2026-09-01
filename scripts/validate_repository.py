@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,10 +17,88 @@ required = [
     "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt",
     "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt",
     "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt",
+    "goreecloud/privacy-shield.application-manifest.json",
+    "goreecloud/privacy-shield.adapter.json",
+    "goreecloud/PRIVACY-SHIELD.md",
 ]
 missing = [path for path in required if not (ROOT / path).is_file()]
 if missing:
     raise SystemExit(f"Missing required repository files: {', '.join(missing)}")
+
+privacy_manifest = json.loads(
+    (ROOT / "goreecloud/privacy-shield.application-manifest.json").read_text(encoding="utf-8")
+)
+if privacy_manifest.get("manifest_version") != 1:
+    raise SystemExit("Privacy Shield application manifest must remain on contract version 1")
+if privacy_manifest.get("application_id") != "com.goreecloud.index":
+    raise SystemExit("Privacy Shield application manifest must bind to com.goreecloud.index")
+if privacy_manifest.get("purposes") != [
+    {
+        "id": "universal-search",
+        "description": "Return authorized local resources that match an explicit user search query.",
+    }
+]:
+    raise SystemExit("Privacy Shield application purpose drifted from the reviewed universal-search scope")
+manifest_resources = privacy_manifest.get("resources")
+if not isinstance(manifest_resources, list) or len(manifest_resources) != 2:
+    raise SystemExit("Current Privacy Shield application manifest must declare exactly Applications and Contacts")
+resources_by_id = {resource.get("resource"): resource for resource in manifest_resources}
+if set(resources_by_id) != {"android.launcher-applications", "android.contacts"}:
+    raise SystemExit("Privacy Shield application manifest contains undeclared current resource scope")
+for resource_id, resource in resources_by_id.items():
+    if resource.get("purposes") != ["universal-search"]:
+        raise SystemExit(f"{resource_id} must remain bound to universal-search only")
+    if resource.get("operations") != ["search"]:
+        raise SystemExit(f"{resource_id} must remain search-only in the current privacy manifest")
+    if resource.get("processing_zones") != ["local"]:
+        raise SystemExit(f"{resource_id} must remain local-only in the current privacy manifest")
+    if resource.get("destinations") != ["goreecloud-index-ui"]:
+        raise SystemExit(f"{resource_id} must not gain an undeclared destination")
+    if resource.get("retention") != {"mode": "none"}:
+        raise SystemExit(f"{resource_id} must remain no-retention in the current privacy manifest")
+    if resource.get("ai_usage") is not False:
+        raise SystemExit(f"{resource_id} must not gain AI usage without a reviewed privacy change")
+    if resource.get("external_processors") != []:
+        raise SystemExit(f"{resource_id} must not gain an external processor without a reviewed privacy change")
+
+privacy_adapter = json.loads(
+    (ROOT / "goreecloud/privacy-shield.adapter.json").read_text(encoding="utf-8")
+)
+expected_adapter = {
+    "schema_version": 1,
+    "adapter": {
+        "id": "index-privacy",
+        "product": "GoreeCloud Index",
+        "runtime_authority": "GoreeCloud/goreecloud-index",
+        "contract_version": 1,
+    },
+    "capabilities": ["data-minimization"],
+    "privacy": {
+        "local_first": True,
+        "raw_private_activity_exported_for_status": False,
+        "remote_tracker_learning": False,
+        "remote_tracker_telemetry": False,
+    },
+    "acceptance": {
+        "runtime_acceptance_required": True,
+        "production_approved": False,
+    },
+}
+if privacy_adapter != expected_adapter:
+    raise SystemExit("Downstream Privacy Shield adapter candidate drifted from the reviewed fail-closed declaration")
+
+privacy_boundary = (ROOT / "goreecloud/PRIVACY-SHIELD.md").read_text(encoding="utf-8")
+for expected in [
+    "downstream Development declarations",
+    "do not establish a centrally accepted Privacy Shield adapter",
+    "data-minimization",
+    "runtime_acceptance_required: true",
+    "production_approved: false",
+    "UnavailableIndexPlatformAuthorityGateway",
+    "Contacts remains non-dispatchable",
+]:
+    if expected not in privacy_boundary:
+        raise SystemExit(f"Privacy Shield downstream boundary documentation missing: {expected}")
 
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 if "android.permission.INTERNET" in manifest:
@@ -211,4 +290,4 @@ for expected in [
     if expected not in architecture:
         raise SystemExit(f"ARCHITECTURE.md missing authority/runtime boundary: {expected}")
 
-print("GoreeCloud Index platform authority adapter repository validation passed")
+print("GoreeCloud Index privacy declaration and authority repository validation passed")
