@@ -98,7 +98,7 @@ compatibility:
     - index-local-provider-contract
     - index-search-action-contract
 
- evidence:
+evidence:
   acceptance_tests: []
   release: []
 
