@@ -77,7 +77,7 @@ class SystemSettingsProvider : IndexProvider {
             SystemSettingDestination(
                 id = "settings-wifi",
                 title = "Wi-Fi",
-                keywords = "network internet wireless connections",
+                keywords = "wifi network internet wireless connections",
                 action = ACTION_WIFI_SETTINGS,
             ),
             SystemSettingDestination(
