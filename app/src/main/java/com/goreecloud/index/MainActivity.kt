@@ -22,12 +22,14 @@ import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.UnavailableIndexPlatformAuthorityGateway
 import com.goreecloud.index.provider.apps.InstalledAppsProvider
 import com.goreecloud.index.provider.contacts.ContactsProvider
+import com.goreecloud.index.provider.settings.SystemSettingsProvider
 import com.goreecloud.index.ui.IndexRoot
 import com.goreecloud.index.ui.theme.GoreeCloudIndexTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var appsProvider: InstalledAppsProvider
     private lateinit var contactsProvider: ContactsProvider
+    private lateinit var settingsProvider: SystemSettingsProvider
     private lateinit var queryEngine: IndexQueryEngine
     private val platformAuthorityGateway: IndexPlatformAuthorityGateway =
         UnavailableIndexPlatformAuthorityGateway
@@ -38,7 +40,8 @@ class MainActivity : ComponentActivity() {
 
         appsProvider = InstalledAppsProvider(this)
         contactsProvider = ContactsProvider(this)
-        queryEngine = IndexQueryEngine(listOf(appsProvider, contactsProvider))
+        settingsProvider = SystemSettingsProvider()
+        queryEngine = IndexQueryEngine(listOf(appsProvider, contactsProvider, settingsProvider))
 
         setContent {
             GoreeCloudIndexTheme {
@@ -76,6 +79,7 @@ class MainActivity : ComponentActivity() {
             allowedProviderIds = setOf(
                 GoreeCloudIndexContract.PROVIDER_APPS,
                 GoreeCloudIndexContract.PROVIDER_CONTACTS,
+                GoreeCloudIndexContract.PROVIDER_SETTINGS,
             ),
             localOnly = true,
             providerAuthorities = mapOf(
@@ -88,6 +92,7 @@ class MainActivity : ComponentActivity() {
         when (val action = result.action) {
             is IndexAction.LaunchActivity -> openApplication(action)
             is IndexAction.ViewContact -> openContact(action)
+            is IndexAction.OpenSystemSetting -> openSystemSetting(action)
             null -> Unit
         }
     }
@@ -122,6 +127,19 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         }.onFailure {
             Toast.makeText(this, "Unable to open this contact.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openSystemSetting(action: IndexAction.OpenSystemSetting) {
+        if (!SystemSettingsProvider.isAllowedAction(action.action)) {
+            Toast.makeText(this, "Unable to open this setting.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        runCatching {
+            startActivity(Intent(action.action))
+        }.onFailure {
+            Toast.makeText(this, "Unable to open this setting.", Toast.LENGTH_SHORT).show()
         }
     }
 }
