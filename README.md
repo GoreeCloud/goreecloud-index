@@ -1,76 +1,87 @@
 # GoreeCloud Index
 
-GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing layer. It coordinates authorized search providers while preserving source ownership, provenance, and platform authority boundaries.
+GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing layer. It coordinates authorized search providers while preserving source ownership, provenance, least privilege, and platform authority boundaries.
 
 ## Status
 
 **Release lifecycle: Development.** GoreeCloud Index is not Stable or production accepted.
 
-The current accepted source/build baseline is authoritative `main` commit `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication.
+The current accepted source/build baseline remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication. The accepted APK SHA-256 is `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`, and accepted artifact ID `9772740479` records that Development build evidence.
 
-This branch advances source to `0.3.0-dev` with a second **Contacts · On-device** provider and a fail-closed authority model. The branch is development source until its own exact-head CI and merge acceptance complete.
+The authoritative repository `main` used to cut this branch is `6f292862ab7cb2b402cdc64868f02758beb3c2be`, which includes later approved product-identity integration beyond that accepted APK baseline. This branch is newer Development source until its own exact-head CI and review complete; neither later mainline source nor this branch inherits the accepted APK evidence automatically.
 
-## Accepted Development Capability
+## Current source capability
 
-Accepted `main` can:
+Index currently includes:
 
-- Browse and search launcher-visible applications on the current device.
-- Dispatch eligible providers concurrently with Kotlin structured concurrency.
-- Cancel superseded query work through the Compose query lifecycle.
-- Apply bounded provider timeouts and distinguish `FAILED` from `TIMED_OUT` issues.
-- Preserve healthy-provider results when another eligible provider fails or times out.
-- Rank before provider-scoped deduplication.
-- Fail closed through exact provider allowlisting and `localOnly` processing gating.
-- Expose the Launcher→Index `com.goreecloud.index.action.SEARCH` handoff.
+- launcher-visible Applications · On-device search;
+- a permission-aware Contacts · On-device provider source slice;
+- concurrent eligible-provider dispatch with structured concurrency;
+- cancellation of superseded query work;
+- bounded provider timeouts with explicit failed/timed-out issues;
+- healthy-provider result preservation when another provider fails;
+- provider-scoped deduplication and ranking;
+- exact provider allowlisting and `localOnly` execution gating;
+- Launcher→Index `com.goreecloud.index.action.SEARCH` handoff;
+- fail-closed Privacy Shield / GoreeCloud Identity evidence boundaries for sensitive providers.
 
-## Contacts Authority Development Slice
+The Contacts provider does not become dispatchable merely because source exists. Current platform authority adapters still fail closed where authoritative Privacy Shield/Identity decisions are unavailable.
 
-The current branch adds source for a permission-aware Contacts provider without treating source presence as platform acceptance.
+## Product boundary
 
-- Android ContactsProvider remains authoritative for contact records.
-- The provider uses `Contacts.CONTENT_FILTER_URI` and does not enumerate contacts for a blank query.
-- Only contact ID/lookup key/display name are read; phone and email fields are not requested by this provider slice.
-- Results preserve an on-device source label and a typed contact-view action.
-- Contact actions are validated as `content://com.android.contacts/contacts/...` before handoff.
-- The provider declares `LOCAL` processing and a provisional 750 ms Development timeout.
-- Dispatch requires Android `READ_CONTACTS` permission **and** unconstrained Privacy Shield decision evidence **and** GoreeCloud Identity authorization evidence.
-- Missing, denied, user-decision-required, unavailable, or `ALLOW_WITH_CONSTRAINTS` evidence fails closed and produces `AUTHORIZATION_REQUIRED`; the query is not sent to Contacts.
-- The application does not fabricate Privacy Shield or Identity approval. Current MainActivity supplies those platform decisions as unavailable, so Contacts remains authority-gated until real adapters are implemented and accepted.
+**GoreeCloud Index** is the universal local/authorized indexing and federated provider authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications and services remain authoritative for their own resources.
 
-`IndexExecutionContext` remains an application execution gate. The new authority-evidence model consumes platform decisions; it does not make Index the Privacy Shield or Identity authority.
+## GLAZE UI V1.1 migration
 
-## Product Boundary
+The sole current design-system consumer target is **GLAZE UI V1.1 (`1.1.0`)**. This branch adds a repository-local Index contract and replaces the generic dynamic Material color baseline with an Index-owned V1.1 Compose theme.
 
-**GoreeCloud Index** is the universal search/indexing authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications and services remain authoritative for their own resources.
+Current V1.1 authority recorded by Index:
 
-## Platform Requirements
+- Stable tag `v1.1.0`;
+- Stable release revision `15cc76d2bcd4065552dc31c77145b63f34d9e7b2`;
+- approved visual source `8ea1f789bbabf943c3359514dc1506b24fa3c51b`;
+- optical contract `contracts/v1.1/optical-refinement.json`.
 
-The UI targets **Glaze UI 2.1.0**. Formal consumer conformance remains pending. Runtime acceptance also remains pending for **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, and GoreeCloud Identity**.
+The theme applies the canonical neutral-first **Deep Teal + Soft Amber** atmosphere, V1.1 16/24/32 optical geometry, explicit Light/Dark/Deep Dark schemes, and preserved 48dp ordinary / 56dp Touch Assistance target contracts. It does not enable nested backdrop blur, require Environmental Color Memory, transmit content for color derivation, or use atmosphere as security/privacy/authorization meaning.
 
-## Android Development Identity
+System dark mode currently selects the Dark scheme. The explicit Deep Dark scheme is implemented as a callable theme mode but is not yet exposed through a user-facing appearance preference; claiming a complete Deep Dark preference workflow would therefore be premature.
+
+This migration is source implementation evidence only. Exact-revision Android rendering, 200% text, TalkBack/accessibility, RTL/localization, contrast/high-contrast behavior, Reduced Motion, Reduced Transparency, form-factor, performance, Human Visual Excellence, and production acceptance remain separate gates.
+
+## Android Development identity
 
 - Production application ID: `com.goreecloud.index`
 - Development application ID: `com.goreecloud.index.dev`
 - Label: `GoreeCloud Index Dev`
-- Branch version: `0.3.0-dev`, version code `3`
-- Accepted-main version: `0.2.0-dev`, version code `2`
+- Version: `0.3.0-dev`, version code `3`
 - Minimum API: 26
 - Compile API: 37
 - Target API: 36
 
-## Accepted Main Evidence
+## Contacts authority slice
 
-- Source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
+- Android ContactsProvider remains authoritative for contact records.
+- The provider uses `Contacts.CONTENT_FILTER_URI` and does not enumerate contacts for a blank query.
+- Only contact ID/lookup key/display name are read in the current slice; phone/email fields are not requested.
+- Results preserve an on-device source label and a typed contact-view action.
+- Contact actions are validated as `content://com.android.contacts/contacts/...` before handoff.
+- Dispatch requires Android `READ_CONTACTS`, an unconstrained Privacy Shield allow decision, and GoreeCloud Identity authorization evidence.
+- Missing/denied/constrained/unavailable evidence fails closed and the query is not sent to Contacts.
+
+`IndexExecutionContext` remains an application execution gate. It consumes platform decisions and does not make Index the Privacy Shield or Identity authority.
+
+## Accepted Main evidence
+
+- Accepted source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
 - Workflow: `33431294298`
 - APK SHA-256: `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
 - Artifact: `9772740479`
-- Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
 
-This is Development source/build evidence only.
+This remains Development source/build evidence only and is not evidence for the later V1.1 migration branch.
 
-## Planned Search Sources
+## Remaining provider work
 
-Files/folders, calendar, media/settings, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search remain separately gated work.
+Files/folders, calendar, media, settings, first-party GoreeCloud content, connected devices, extensions, optional approved third-party services, and Internet results through GoreeCloud Search remain separately gated planned work. Production multi-user authorization, accepted platform adapters, observability, recovery, and production deployment evidence also remain incomplete.
 
 ## Documentation
 
@@ -82,6 +93,7 @@ Files/folders, calendar, media/settings, first-party GoreeCloud content, connect
 - [User manual](USER-MANUAL.md)
 - [Benefits](BENEFITS.md)
 - [Competitive objectives](COMPETITIVE-OBJECTIVES.md)
+- [GLAZE UI adoption](docs/GLAZE_UI_ADOPTION.md)
 
 ## License
 

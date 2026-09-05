@@ -58,7 +58,7 @@ Current MainActivity deliberately supplies Privacy Shield and Identity evidence 
 - Everkeep remains continuity/recovery authority for applicable durable state.
 - GoreeCloud Mesh may coordinate first-party providers later without taking source ownership.
 - GoreeCloud Search remains the Internet/web/current-information authority.
-- Glaze UI 2.1.0 remains the current Stable consumer target; formal Index conformance is pending.
+- GLAZE UI V1.1 / `1.1.0` is the current published Stable consumer target, and this branch contains a bounded V1.1 source mapping. The published `1.1.0` CSS graph has a known import-closure defect, so Index remains fail-closed for current Glaze conformance until a corrected immutable Stable release is published, explicitly re-pinned, and independently revalidated.
 
 ## Accepted Main Evidence
 
