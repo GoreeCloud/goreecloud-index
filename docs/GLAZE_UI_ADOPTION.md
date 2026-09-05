@@ -13,6 +13,12 @@ Development source migration. This record does not establish downstream conforma
 - Optical contract: `contracts/v1.1/optical-refinement.json`
 - Atmosphere tokens: `tokens/glaze-v1.1-atmosphere.json`
 
+## Known Stable-line blocker
+
+The published `1.1.0` source remains the current Stable consumer target, but it has a known V1.1 CSS import-closure defect. The governed corrective line is GLAZE UI PR #129 / `1.1.1-rc.1`; that correction is still a Release Candidate with `consumerEligible: false` and is not a corrected immutable Stable release.
+
+Index may retain this bounded Development source mapping for review, but this `1.1.0` pin must not be used to claim current GLAZE UI conformance, release eligibility, or production acceptance. After a corrected immutable Stable release is published, Index must explicitly re-pin the exact version and revision and repeat all applicable source, rendered/native visual, accessibility, representative-device, artifact/distribution, and production acceptance.
+
 ## Index mapping
 
 Index uses native Jetpack Compose / Material 3 controls while owning its visual theme and interaction semantics.
