@@ -4,9 +4,11 @@ GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing lay
 
 ## Status
 
-**Lifecycle: Development.** GoreeCloud Index is not Stable or production accepted.
+**Release lifecycle: Development.** GoreeCloud Index is not Stable or production accepted.
 
-The authoritative repository baseline used for this branch is `main` commit `6f292862ab7cb2b402cdc64868f02758beb3c2be`, which includes the approved GoreeCloud Index product identity and the existing Applications/Contacts provider foundations. This branch is new Development source until exact-head CI and review complete.
+The current accepted source/build baseline remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication. The accepted APK SHA-256 is `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`, and accepted artifact ID `9772740479` records that Development build evidence.
+
+The authoritative repository `main` used to cut this branch is `6f292862ab7cb2b402cdc64868f02758beb3c2be`, which includes later approved product-identity integration beyond that accepted APK baseline. This branch is newer Development source until its own exact-head CI and review complete; neither later mainline source nor this branch inherits the accepted APK evidence automatically.
 
 ## Current source capability
 
@@ -67,6 +69,15 @@ This migration is source implementation evidence only. Exact-revision Android re
 - Missing/denied/constrained/unavailable evidence fails closed and the query is not sent to Contacts.
 
 `IndexExecutionContext` remains an application execution gate. It consumes platform decisions and does not make Index the Privacy Shield or Identity authority.
+
+## Accepted Main evidence
+
+- Accepted source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
+- Workflow: `33431294298`
+- APK SHA-256: `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
+- Artifact: `9772740479`
+
+This remains Development source/build evidence only and is not evidence for the later V1.1 migration branch.
 
 ## Remaining provider work
 
