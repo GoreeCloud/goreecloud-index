@@ -109,7 +109,7 @@ fun IndexRoot(
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 label = { Text("Search this device") },
-                placeholder = { Text("Applications and authorized sources") },
+                placeholder = { Text("Applications, Settings, and authorized sources") },
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             )
 
@@ -196,13 +196,19 @@ private fun SourceStatusCard() {
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
+                text = "Settings · On-device · Active navigation",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
                 text = "Contacts · On-device · Authority gated",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 6.dp),
             )
             Text(
-                text = "The Contacts source is implemented but cannot run until Android contact permission plus Privacy Shield and GoreeCloud Identity authority evidence are all available. Files, calendar, GoreeCloud services, optional third-party services, and web results remain separately gated provider work.",
+                text = "Settings results are a static navigation catalog and do not read setting values. Contacts cannot run until Android contact permission plus Privacy Shield and GoreeCloud Identity authority evidence are all available. Files, calendar, GoreeCloud services, optional third-party services, and web results remain separately gated provider work.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
@@ -331,7 +337,7 @@ private fun sourceLabel(type: IndexResultType): String = when (type) {
     IndexResultType.FILE -> "Files"
     IndexResultType.CALENDAR -> "Calendar"
     IndexResultType.MEDIA -> "Media"
-    IndexResultType.SETTING -> "Settings"
+    IndexResultType.SETTING -> "Settings · On-device"
     IndexResultType.GOREECLOUD -> "GoreeCloud"
     IndexResultType.DEVICE -> "Device"
     IndexResultType.WEB -> "Web"

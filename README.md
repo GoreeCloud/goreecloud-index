@@ -8,7 +8,7 @@ GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing lay
 
 The current accepted source/build baseline is authoritative `main` commit `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication.
 
-This branch advances source to `0.3.0-dev` with a second **Contacts · On-device** provider and a fail-closed authority model. The branch is development source until its own exact-head CI and merge acceptance complete.
+Current `0.3.0-dev` development source contains the Contacts/authority work and this branch adds a bounded **Settings · On-device** provider candidate. Branch source is not accepted runtime, release, production, or Stable evidence until exact-head validation and normal merge governance complete.
 
 ## Accepted Development Capability
 
@@ -25,7 +25,7 @@ Accepted `main` can:
 
 ## Contacts Authority Development Slice
 
-The current branch adds source for a permission-aware Contacts provider without treating source presence as platform acceptance.
+Current source includes a permission-aware Contacts provider without treating source presence as platform acceptance.
 
 - Android ContactsProvider remains authoritative for contact records.
 - The provider uses `Contacts.CONTENT_FILTER_URI` and does not enumerate contacts for a blank query.
@@ -37,15 +37,29 @@ The current branch adds source for a permission-aware Contacts provider without 
 - Missing, denied, user-decision-required, unavailable, or `ALLOW_WITH_CONSTRAINTS` evidence fails closed and produces `AUTHORIZATION_REQUIRED`; the query is not sent to Contacts.
 - The application does not fabricate Privacy Shield or Identity approval. Current MainActivity supplies those platform decisions as unavailable, so Contacts remains authority-gated until real adapters are implemented and accepted.
 
-`IndexExecutionContext` remains an application execution gate. The new authority-evidence model consumes platform decisions; it does not make Index the Privacy Shield or Identity authority.
+`IndexExecutionContext` remains an application execution gate. The authority-evidence model consumes platform decisions; it does not make Index the Privacy Shield or Identity authority.
+
+## Settings Navigation Development Slice
+
+This branch adds a local provider for a bounded static catalog of Android Settings destinations.
+
+- Ten reviewed destinations cover Settings, Wi-Fi, Bluetooth, Display, Sound, Accessibility, Location, Security, Apps, and Battery Saver.
+- The provider is local-only, has a provisional 250 ms timeout, and never runs for a blank query.
+- It searches only repository-defined labels and keywords; it does **not** read Android setting values, device configuration values, permission state, accounts, history, or other user data.
+- It adds no Android permission, network capability, local cache, analytics, or persistent query history.
+- Results use a typed `OpenSystemSetting` action.
+- MainActivity revalidates the requested action against the exact static allowlist before Android handoff; arbitrary actions, URLs, data URIs, and extras are not supported.
+- Android Settings remains authoritative for every setting and any authentication, permission, confirmation, or modification performed there.
+
+Platform review for this bounded slice: Privacy Shield gains no new data resource because the provider searches static GoreeCloud-owned navigation metadata rather than reading setting state; Wardveil concerns are constrained through the closed action allowlist; Everkeep has no new durable state to recover; Mesh and GoreeCloud Identity are not invoked for this local OS-navigation handoff; Manager gains no administrative authority; and Glaze presentation continues through the existing Index result UI without claiming new Glaze acceptance.
 
 ## Product Boundary
 
-**GoreeCloud Index** is the universal search/indexing authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications and services remain authoritative for their own resources.
+**GoreeCloud Index** is the universal search/indexing authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications, Android Settings, and services remain authoritative for their own resources and operations.
 
 ## Platform Requirements
 
-The UI targets **Glaze UI 2.1.0**. Formal consumer conformance remains pending. Runtime acceptance also remains pending for **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, and GoreeCloud Identity**.
+GLAZE UI V1.1 / `1.1.0` is the current published Stable consumer target. Index's separate V1.1 migration remains Development work, and the immutable `1.1.0` CSS graph has a known import-closure defect. A corrected immutable Stable release must be published and explicitly re-pinned/revalidated before current Glaze conformance can be claimed. Runtime acceptance also remains pending for applicable **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, GoreeCloud Identity, and GoreeCloud Manager** contracts.
 
 ## Android Development Identity
 
@@ -70,7 +84,7 @@ This is Development source/build evidence only.
 
 ## Planned Search Sources
 
-Files/folders, calendar, media/settings, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search remain separately gated work.
+Files/folders, calendar, media, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search remain separately gated work. Settings **value/state indexing** is not implemented by the static navigation provider and would require a separate authority/privacy review.
 
 ## Documentation
 

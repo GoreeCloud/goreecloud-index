@@ -31,6 +31,9 @@ jobs:
       - name: Repository contract validation
         run: python3 scripts/validate_repository.py
 
+      - name: Settings provider boundary validation
+        run: python3 scripts/validate_settings_provider.py
+
       - name: Approved branding validation
         run: python3 scripts/validate_branding.py
 

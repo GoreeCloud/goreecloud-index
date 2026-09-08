@@ -2,7 +2,7 @@
 
 ## Status Model
 
-**Release lifecycle: Development.** Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`. The current `0.3.0-dev` Contacts/authority work is branch source pending exact-head validation and merge acceptance. Neither state is production or Stable acceptance.
+**Release lifecycle: Development.** Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current `0.3.0-dev` Contacts/authority source remains Development, and this branch adds a separate bounded Settings-navigation provider candidate. Neither state is production or Stable acceptance.
 
 ## Accepted Current Features
 
@@ -32,9 +32,9 @@
 - No unrestricted `QUERY_ALL_PACKAGES` and no Android Internet permission.
 - Local processing, provisional 500 ms timeout, label/package matching, and exact component launch actions.
 
-## Contacts / Authority Branch Features
+## Contacts / Authority Development Features
 
-The `0.3.0-dev` branch adds source for:
+Current `0.3.0-dev` source includes:
 
 - `IndexAuthorityRequirement`: Android runtime permission, Privacy Shield, and GoreeCloud Identity.
 - `IndexAuthorityEvidence` outcomes including `ALLOW`, `ALLOW_WITH_CONSTRAINTS`, `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE`.
@@ -45,20 +45,38 @@ The `0.3.0-dev` branch adds source for:
 - Contacts projection limited to contact ID, lookup key, and display name; no phone/email field reads in this slice.
 - Typed contact-view actions with URI validation before Android handoff.
 - Contacts local processing, 750 ms provisional timeout, and no blank-query enumeration.
-- UI disclosure that Applications are active while Contacts remain authority-gated.
+- UI disclosure that Contacts remains authority-gated.
 - Neutral authorization-required state distinct from operational provider failure.
 
-Current MainActivity deliberately supplies Privacy Shield and Identity evidence as unavailable. Therefore Contacts source exists, but Contacts search is not enabled or represented as an accepted runtime integration.
+Current MainActivity deliberately supplies Privacy Shield and Identity evidence as unavailable. Therefore Contacts source exists, but Contacts search is not represented as an accepted runtime integration.
+
+## Settings · On-device Development Feature
+
+This branch adds a bounded local Android Settings navigation provider:
+
+- Static ten-destination catalog: Settings, Wi-Fi, Bluetooth, Display, Sound, Accessibility, Location, Security, Apps, and Battery Saver.
+- Local processing with a provisional 250 ms timeout.
+- Blank queries do not enumerate Settings destinations.
+- Search matches only repository-defined destination labels and keywords.
+- No Android Settings values, device-configuration values, accounts, permission state, or other private state are read.
+- No new permission, network capability, telemetry, cache, or persistent search history is introduced.
+- Results use typed `SETTING` results and `OpenSystemSetting` actions.
+- MainActivity verifies the action against the exact static allowlist before handoff.
+- Arbitrary intent actions, URLs, data URIs, extras, and direct setting mutations are unsupported.
+- Android Settings remains authoritative for every setting and every actual configuration change.
+
+The dedicated source validator fails closed if the provider gains setting-value readers, unrestricted package visibility, networking, arbitrary web destinations, or loses the typed/whitelisted action boundary. JVM tests cover local/non-browsing state, blank-query behavior, matching, result bounds, action uniqueness, and arbitrary-action rejection.
 
 ## Platform Boundaries
 
-- Privacy Shield remains data-use/consent/purpose/retention authority.
-- GoreeCloud Identity remains platform identity and GoreeCloud-level authorization authority; authentication is not blanket record access.
-- Wardveil Security remains security/trust evidence authority.
-- Everkeep remains continuity/recovery authority for applicable durable state.
-- GoreeCloud Mesh may coordinate first-party providers later without taking source ownership.
+- Privacy Shield remains data-use/consent/purpose/retention authority. The Settings navigation provider adds no new Privacy Shield resource because it searches static GoreeCloud-owned destination metadata and reads no setting state.
+- GoreeCloud Identity remains platform identity and GoreeCloud-level authorization authority; the Settings navigation slice creates no new identity decision.
+- Wardveil Security remains security/trust evidence authority; the Settings handoff is constrained to a closed local action allowlist.
+- Everkeep remains continuity/recovery authority for applicable durable state; this provider creates no durable state.
+- GoreeCloud Mesh may coordinate first-party providers later without taking source ownership; this local Android Settings handoff does not require Mesh.
+- GoreeCloud Manager does not gain OS configuration authority through Index.
 - GoreeCloud Search remains the Internet/web/current-information authority.
-- Glaze UI 2.1.0 remains the current Stable consumer target; formal Index conformance is pending.
+- GLAZE UI V1.1 / `1.1.0` is the current published Stable consumer target. The immutable `1.1.0` CSS graph has a known import-closure defect, so Index remains fail-closed for current Glaze conformance until a corrected immutable Stable release is published, explicitly re-pinned, and independently revalidated.
 
 ## Accepted Main Evidence
 
@@ -71,10 +89,12 @@ Current MainActivity deliberately supplies Privacy Shield and Identity evidence 
 ## Partial / Not Yet Accepted
 
 - Contacts runtime enablement and user permission flow.
-- Actual Privacy Shield and Identity runtime adapters/evidence.
-- Wardveil/Everkeep/Mesh runtime integration.
+- Actual Privacy Shield and Identity runtime adapters/evidence for private providers.
+- Wardveil/Everkeep/Mesh/Manager runtime integration where applicable.
+- Representative-device Settings action availability, OEM behavior, navigation, accessibility, and performance acceptance.
 - Representative-device Contacts/application performance, cancellation, action, accessibility, and Glaze UI acceptance.
-- Files/folders, calendar, media/settings, first-party service, connected-device, Search, extension, or third-party providers.
+- Files/folders, calendar, media, first-party service, connected-device, Search, extension, or third-party providers.
+- Any indexing or reading of actual Android setting values/state.
 - Local content indexing and incremental/streaming result delivery.
 - Production signing/deployment or Stable qualification.
 
