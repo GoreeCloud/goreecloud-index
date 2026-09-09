@@ -45,11 +45,15 @@ platform_systems:
     notes: Current query state is transient and no intentional persistent query history exists, but any applicable durable Index configuration/settings still requires an accepted Everkeep continuity contract and recovery evidence before Stable qualification.
   glaze_ui:
     result: applicable-migration-required
-    version: '2.1.0'
+    version: '1.3.0'
     evidence:
       - README.md
       - CONFORMANCE.md
-    notes: Authoritative Index main still records Glaze UI 2.1.0 source targeting. Current published Stable consumer authority is V1.1 / 1.1.0, so migration is required. Draft PR #16 contains a Development V1.1 Compose mapping but is unmerged; the published 1.1.0 source also has the known immutable import-closure defect pending a corrected consumer-eligible Stable release and explicit downstream revalidation.
+      - docs/GLAZE_UI_ADOPTION.md
+      - app/src/main/java/com/goreecloud/index/ui/theme/GlazeV13Contract.kt
+      - app/src/main/java/com/goreecloud/index/ui/theme/IndexTheme.kt
+      - app/src/test/java/com/goreecloud/index/ui/theme/GlazeV13ContractTest.kt
+    notes: Index Development source maps its native Compose theme to current Stable GLAZE UI V1.3 / 1.3.0 at exact Stable source integration anchor fc7cc91d2eace8da2371371c2855c24cbcb326a1. The mapping replaces the generic dynamic Material color baseline with an Index-owned neutral-first theme, explicit Light/Dark/Deep Dark source modes, 16/24/32 dp shape hierarchy, 48/56 dp target floors, and bounded local color semantics. Complete rendered/native, accessibility, adaptive/form-factor, representative-device, performance, rollback, Human Visual Excellence, release, and production acceptance remain incomplete.
   mesh:
     result: applicable-blocked
     version: null
@@ -90,10 +94,10 @@ external_dependencies: []
 
 compatibility:
   platform_contract: '0.2'
-  glaze_ui_required: '1.1.0'
+  glaze_ui_required: '1.3.0'
   requires:
     - goreecloud-platform-contract==0.2
-    - glaze-ui==1.1.0
+    - glaze-ui==1.3.0
   provides:
     - index-local-provider-contract
     - index-search-action-contract
@@ -110,14 +114,15 @@ conformance:
     - CONFORMANCE.md
     - ARCHITECTURE.md
     - CAPABILITIES.md
+    - docs/GLAZE_UI_ADOPTION.md
   blockers:
     - GoreeCloud Manager operational integration and acceptance are incomplete.
     - Producer-authoritative Privacy Shield runtime integration and decision lifecycle acceptance are incomplete.
     - Wardveil Security provider/action evidence integration and security acceptance are incomplete.
     - Everkeep applicability and recovery requirements for any durable Index configuration/settings have not been accepted.
-    - Authoritative Index main still targets superseded Glaze UI 2.1.0; current published Stable V1.1 / 1.1.0 migration and downstream acceptance remain incomplete, and the known immutable 1.1.0 import-closure defect still requires a corrected consumer-eligible Stable release before current conformance can be claimed.
+    - GLAZE UI V1.3 / 1.3.0 native source mapping exists, but rendered/native, TalkBack/accessibility, large-text/reflow, localization/RTL, adaptive/form-factor, representative-device, performance, rollback, and Human Visual Excellence acceptance remain incomplete.
     - GoreeCloud Mesh provider discovery/coordination integration and runtime acceptance are incomplete.
     - GoreeCloud Identity authorization adapter, user/profile isolation, revocation, and runtime acceptance are incomplete.
     - Index exposes no accepted health/readiness interfaces for GoreeCloud Manager or platform observability.
-    - Representative Android device acceptance, accessibility, localization/RTL, form-factor/performance, production signing/distribution, recovery decisions, and release provenance are incomplete.
+    - Representative Android device acceptance, production signing/distribution, recovery decisions, and release provenance are incomplete.
     - No Stable or production-approved GoreeCloud Index release evidence is declared.

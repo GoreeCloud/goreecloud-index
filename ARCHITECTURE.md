@@ -2,13 +2,13 @@
 
 ## Status
 
-**Release lifecycle: Development.** Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`. The `0.3.0-dev` Contacts/authority architecture is branch source pending exact-head validation and merge acceptance. Production acceptance and Stable qualification remain false.
+**Release lifecycle: Development.** Current repository `main` is `9f3aaa9543a8a8351fa2d4713481bccb8199069d`. The last accepted APK/build evidence remains bound to exact source `cc3cc21d6e11dad026253c3371c3b67663d3b726`, workflow `33431294298`, APK SHA-256 `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`, and artifact `9772740479`. Current `0.3.0-dev` source and this V1.3 candidate are newer Development states. Production acceptance and Stable qualification remain false.
 
 ## Authority Model
 
 GoreeCloud Index coordinates universal search; it does not own provider resources.
 
-- Android is authoritative for launcher applications, ContactsProvider records, platform permissions, and Android handoff behavior.
+- Android is authoritative for launcher applications, ContactsProvider records, platform permissions, Settings state, and Android handoff behavior.
 - GoreeCloud Launcher is an invocation/presentation surface; Index remains the universal-search/indexing authority.
 - GoreeCloud Search remains authoritative for Internet/web/current-information search.
 - Privacy Shield remains authoritative for consent, purpose, minimization, retention, processing-zone, and destination decisions.
@@ -17,6 +17,8 @@ GoreeCloud Index coordinates universal search; it does not own provider resource
 - Wardveil Security remains authoritative for applicable trust/protection/security evidence.
 - Everkeep remains authoritative for continuity of applicable durable Index configuration.
 - GoreeCloud Mesh may coordinate first-party provider discovery without taking source authority.
+- GoreeCloud Manager may consume operational status but does not gain source/provider or OS configuration authority.
+- GLAZE UI governs presentation/interaction contracts, not provider truth.
 
 ## Query Flow
 
@@ -62,11 +64,11 @@ The engine considers only providers applicable to the current query. This preven
 
 ## Applications Provider
 
-`InstalledAppsProvider` remains the accepted provider: scoped launcher discovery, local processing, 500 ms provisional timeout, label/package matching, exact `ComponentName` actions, and no Internet permission or `QUERY_ALL_PACKAGES`.
+`InstalledAppsProvider` supplies scoped launcher discovery, local processing, 500 ms provisional timeout, label/package matching, exact `ComponentName` actions, and no Internet permission or `QUERY_ALL_PACKAGES`.
 
-## Contacts Provider — Branch Source
+## Contacts Provider — Current Source, Authority-Gated
 
-`ContactsProvider` is the second provider implementation:
+`ContactsProvider` exists in current source with:
 
 - Android ContactsProvider authority through `ContactsContract`;
 - `LOCAL` processing;
@@ -75,20 +77,30 @@ The engine considers only providers applicable to the current query. This preven
 - `Contacts.CONTENT_FILTER_URI` query path;
 - projection limited to `_ID`, `LOOKUP_KEY`, `DISPLAY_NAME_PRIMARY`;
 - no phone/email field read in this slice;
-- typed `ViewContact` result action generated from `Contacts.getLookupUri`;
+- typed `ViewContact` result action;
 - required Android permission + Privacy Shield + Identity authority evidence.
 
-Current MainActivity registers Contacts but supplies Privacy Shield/Identity evidence as unavailable. Therefore the engine reports authorization-required for nonblank queries and does not invoke Contacts. This preserves source progress without claiming platform integration.
+The current unavailable platform-authority gateway keeps Contacts non-dispatchable. The engine reports authorization-required for applicable nonblank queries without invoking Contacts until all required authority can be satisfied.
+
+## Settings Navigation Provider — Current Source
+
+The bounded Settings provider searches only repository-defined static navigation metadata and returns typed handoff actions constrained to a closed allowlist.
+
+It does not read setting values, device configuration state, accounts, permission state, or history; it adds no network permission, telemetry, cache, or persistent query state. Android Settings remains the authority for configuration truth and all actual changes. Representative-device and OEM-specific action availability remain separate acceptance gates.
 
 ## Action Boundary
 
-Application actions use exact package/class components. Contact actions are accepted only when the parsed URI has scheme `content`, authority `com.android.contacts`, and a contacts path before `ACTION_VIEW` is issued. Invalid action URIs fail closed with user-visible feedback.
+Application actions use exact package/class components. Contact actions are accepted only when the parsed URI matches the reviewed Contacts `content` authority/path contract before `ACTION_VIEW` handoff. Settings actions are accepted only when they match the repository-defined static allowlist. Invalid actions fail closed with user-visible feedback.
 
-## UI Architecture
+## UI Architecture and GLAZE UI V1.3
 
-The UI searches “authorized sources,” shows Applications as active and Contacts as authority-gated, lists all provider issues, and distinguishes authorization-required state from operational provider failure/timeout. It preserves safe-drawing insets, semantic headings, bounded targets, and non-animated progress.
+The UI searches authorized sources, shows Applications as active and Contacts as authority-gated, lists provider issues, and distinguishes authorization-required state from operational provider failure/timeout. It preserves safe-drawing insets, semantic headings, bounded targets, and non-animated progress.
 
-Glaze UI 2.1.0 is the current Stable target; formal Index conformance remains pending.
+The current shared presentation target is **GLAZE UI V1.3 / `1.3.0` — Adaptive Resonance**. This candidate records exact Stable source integration anchor `fc7cc91d2eace8da2371371c2855c24cbcb326a1`, Stable aggregate identifiers, and `1.2.0` rollback baseline. Because Index is a native Compose consumer, web/runtime identifiers are provenance references rather than native imports.
+
+The candidate replaces generic Android dynamic color with deterministic GoreeCloud-owned Light, Dark, and Deep Dark schemes, retains neutral-first Deep Teal/Soft Amber atmosphere, 16/24/32 dp optical geometry, and 48/56 dp target floors. Presentation state does not manufacture authorization, privacy, security, recovery, or provenance truth.
+
+Formal Index Glaze conformance remains pending exact-head automated validation and representative rendered/native, accessibility, form-factor, and performance acceptance.
 
 ## Failure and Recovery Model
 
@@ -101,10 +113,14 @@ Glaze UI 2.1.0 is the current Stable target; formal Index conformance remains pe
 - Invalid result action → blocked at handoff.
 - No silent remote fallback.
 
-## Accepted Main Evidence
+## Accepted Historical Build Evidence
 
 `cc3cc21d6e11dad026253c3371c3b67663d3b726` passed exact-main workflow `33431294298` with APK SHA-256 `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`, artifact `9772740479`, digest `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`.
 
 ## Next Architecture Milestone
 
-After this branch is source-valid, the next milestone is an accepted Privacy Shield/Identity adapter path plus explicit user decision flow, followed by representative-device Contacts acceptance. Broader file/calendar/provider expansion remains gated until that authority path is proven rather than simulated.
+1. Exact-head validate the current V1.3 candidate.
+2. Complete representative rendered/native and accessibility/form-factor acceptance.
+3. Establish accepted Privacy Shield/Identity adapter paths plus explicit user-decision flow without weakening fail-closed authority.
+4. Perform representative-device Contacts and Settings acceptance.
+5. Expand broader file/calendar/provider coverage only after those authority paths are proven rather than simulated.
