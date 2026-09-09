@@ -335,6 +335,27 @@ class IndexQueryEngineTest {
         assertEquals(null, IndexTextMatcher.score("calendar", "Maps", "com.example.maps"))
     }
 
+    @Test
+    fun textMatcherTreatsCanonicalUnicodeFormsAsEquivalent() {
+        val composed = "Café"
+        val decomposed = "Cafe\u0301"
+
+        assertEquals(1_000, IndexTextMatcher.score(decomposed, composed))
+        assertEquals(1_000, IndexTextMatcher.score(composed, decomposed))
+    }
+
+    @Test
+    fun textMatcherNormalizesSecondaryTextAcrossCanonicalUnicodeForms() {
+        assertEquals(
+            540,
+            IndexTextMatcher.score(
+                query = "resume\u0301",
+                title = "Documents",
+                secondary = "Résumé",
+            ),
+        )
+    }
+
     private fun contextFor(vararg providerIds: String) = IndexExecutionContext(
         allowedProviderIds = providerIds.toSet(),
         localOnly = true,
