@@ -349,7 +349,7 @@ class IndexQueryEngineTest {
         assertEquals(
             540,
             IndexTextMatcher.score(
-                query = "resume\u0301",
+                query = "Re\u0301sume\u0301",
                 title = "Documents",
                 secondary = "Résumé",
             ),
