@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Release lifecycle: Development.** Accepted source/build baseline is `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current `0.3.0-dev` authority/Contacts source remains Development, and this branch adds a bounded local Android Settings-navigation provider candidate. Neither branch source nor green CI alone establishes production or Stable acceptance.
+**Release lifecycle: Development.** Current repository `main` is `9f3aaa9543a8a8351fa2d4713481bccb8199069d`. The last accepted APK/build evidence remains bound to `cc3cc21d6e11dad026253c3371c3b67663d3b726`; later `0.3.0-dev` source and this V1.3 candidate require independent validation. Neither green CI nor source presence alone establishes production or Stable acceptance.
 
-## Accepted Main Capabilities
+## Current Source Capabilities
 
 - Native Kotlin/Jetpack Compose Android application.
 - Provider-neutral query/result/action contracts.
@@ -14,17 +14,17 @@
 - Deterministic ranking before provider-scoped deduplication and bounded final result count.
 - Launcher-visible Android Applications provider with exact component launch handoff.
 - Launcher→Index external search invocation.
-- Source-aware UI and exact-source Android build evidence.
+- Source-aware UI and exact-source build evidence discipline.
 
-## Development Capability: Authority-Gated Providers
+## Authority-Gated Providers
 
 Current source includes an explicit consuming authority layer. Providers may require Android runtime permission, Privacy Shield decision evidence, GoreeCloud Identity authorization evidence, or a combination.
 
 Only a referenced unconstrained `ALLOW` satisfies Privacy Shield/Identity requirements. `ALLOW_WITH_CONSTRAINTS`, `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE` fail closed. This prevents Index from dropping platform obligations or converting unavailable authority into implicit permission.
 
-`IndexExecutionContext` remains an Index execution gate. The evidence objects do not make Index authoritative for Privacy Shield or Identity decisions.
+`IndexExecutionContext` remains an Index execution gate. Evidence objects do not make Index authoritative for Privacy Shield or Identity decisions.
 
-## Development Capability: Contacts · On-device
+## Contacts · On-device — Current Source, Authority-Gated
 
 - Android ContactsProvider as record authority.
 - `READ_CONTACTS` declared as the scoped Android permission.
@@ -33,42 +33,42 @@ Only a referenced unconstrained `ALLOW` satisfies Privacy Shield/Identity requir
 - `Contacts.CONTENT_FILTER_URI` search path.
 - Projection limited to ID, lookup key, and display name.
 - No phone/email data requested by this slice.
-- `CONTACT` results with `People · On-device` provenance.
+- `CONTACT` results with on-device provenance.
 - Typed contact-view action and content-URI authority/path validation before handoff.
 - Required authority set: Android permission + Privacy Shield + GoreeCloud Identity.
 
-Current MainActivity supplies Privacy Shield and Identity evidence as unavailable, so the Contacts provider is intentionally not dispatchable yet. This is implemented source, not accepted Contacts runtime enablement.
+The current unavailable platform-authority gateway keeps Contacts intentionally non-dispatchable. This is implemented source, not accepted Contacts runtime enablement.
 
-## Development Capability: Settings · On-device
+## Settings · On-device — Current Source
 
-- Repository-owned static catalog of ten Android Settings navigation destinations.
-- Local processing and provisional 250 ms Development timeout.
-- `supportsEmptyQuery = false`; no blank-query Settings enumeration.
-- Matching is limited to static destination titles and keyword metadata.
-- Typed `SETTING` results and `OpenSystemSetting` handoff actions.
+- Repository-owned static catalog of Android Settings navigation destinations.
+- Local processing with a provisional bounded Development timeout.
+- No blank-query Settings enumeration.
+- Matching limited to static destination titles and keyword metadata.
+- Typed Settings result/handoff actions.
 - MainActivity re-checks every action against the exact provider allowlist before launching Android Settings.
 - No arbitrary intent action, URL, data URI, extra, direct setting mutation, or dynamic destination is accepted.
-- No Settings value/state reader, ContentResolver query, network client, new Android permission, cache, analytics, or durable provider state.
-- Android Settings remains authoritative for setting values and any actual configuration changes.
-- A dedicated CI validator and JVM regression tests preserve the navigation-only boundary.
+- No Settings value/state reader, network client, new Android permission, cache, analytics, or durable provider state.
+- Android Settings remains authoritative for setting values and actual configuration changes.
+- Dedicated CI validation and JVM regression tests preserve the navigation-only boundary.
 
-This provider does not establish platform acceptance on OEM-specific Settings implementations. Representative-device action availability, navigation, accessibility, failure behavior, and OEM differences remain separate acceptance gates.
+Representative-device action availability, navigation, accessibility, failure behavior, and OEM differences remain separate acceptance gates.
 
 ## Privacy, Security, and Platform Boundaries
 
 Applications remain local-only with no Android Internet permission or unrestricted package enumeration. Contacts also declares local processing. Index adds no persistent query history or contact cache in this slice.
 
-The Settings provider searches GoreeCloud-owned static navigation metadata rather than reading Android setting values, so it adds no new private data resource or retention scope. Wardveil authority is not inferred from provider success; the implementation merely constrains handoff to a closed local action allowlist. Everkeep has no new durable Settings-provider state to recover. Mesh and Identity are not invoked by the local Android Settings navigation handoff. Manager gains no OS configuration authority through Index.
+The Settings provider searches GoreeCloud-owned static navigation metadata rather than Android setting values, so it adds no new private-data resource or retention scope. Wardveil authority is not inferred from provider success; the implementation merely constrains handoff to a closed local action allowlist. Everkeep has no new durable Settings-provider state to recover. Mesh and Identity are not invoked by the local Android Settings navigation handoff. Manager gains no OS configuration authority through Index.
 
 Actual Privacy Shield, Identity, Wardveil, Everkeep, Mesh, Manager, and Search runtime integrations remain unaccepted wherever applicable.
 
-## Accessibility and Glaze Boundary
+## Accessibility and GLAZE UI V1.3 Boundary
 
-Source has safe-drawing insets, semantic headings, bounded interaction sizes, non-animated progress, distinct operational-vs-authorization states, and source labels. The Settings provider reuses those existing result surfaces and adds no new custom interaction primitive.
+Source has safe-drawing insets, semantic headings, bounded interaction sizes, non-animated progress, distinct operational-vs-authorization states, and source labels. The Settings provider reuses those result surfaces and adds no new custom interaction primitive.
 
-GLAZE UI V1.1 / `1.1.0` is the current published Stable target. A separate Index V1.1 migration is Development work, and the immutable `1.1.0` CSS graph has a known import-closure defect. Current conformance remains blocked pending a corrected immutable Stable release, explicit re-pin, and fresh applicable acceptance.
+The current shared design-system target is **GLAZE UI V1.3 / `1.3.0` — Adaptive Resonance**. This candidate records exact Stable source anchor `fc7cc91d2eace8da2371371c2855c24cbcb326a1`, uses deterministic GoreeCloud-owned Light/Dark/Deep Dark Compose schemes, 16/24/32 dp optical geometry, and 48/56 dp target floors, while keeping overall conformance fail-closed pending exact-head and representative-device acceptance.
 
-## Accepted Main Build Evidence
+## Accepted Historical Build Evidence
 
 - Source: `cc3cc21d6e11dad026253c3371c3b67663d3b726`
 - Workflow: `33431294298`
