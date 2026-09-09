@@ -131,6 +131,6 @@ The last accepted APK/build evidence remains:
 - Exact-main workflow: `33431294298`
 - APK SHA-256: `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
 - Artifact: `9772740479`
-- Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265d61a22c`
+- Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
 
 Current `main` and this V1.3 branch are newer source states. Their validation must be recorded independently and must not be represented by the historical APK evidence above.
