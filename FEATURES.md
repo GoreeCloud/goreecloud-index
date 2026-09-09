@@ -2,9 +2,11 @@
 
 ## Status Model
 
-**Release lifecycle: Development.** Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current `0.3.0-dev` Contacts/authority source remains Development, and this branch adds a separate bounded Settings-navigation provider candidate. Neither state is production or Stable acceptance.
+**Release lifecycle: Development.** Current repository `main` is `9f3aaa9543a8a8351fa2d4713481bccb8199069d`. The older accepted APK/build evidence remains bound to exact source `cc3cc21d6e11dad026253c3371c3b67663d3b726`, workflow `33431294298`, APK SHA-256 `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`, and artifact `9772740479`.
 
-## Accepted Current Features
+Current `0.3.0-dev` source contains the Applications provider, Contacts authority slice, and bounded Settings-navigation provider. This V1.3 reconciliation branch is newer Development source and does not inherit production, Stable, or artifact acceptance from older evidence.
+
+## Current Source Features
 
 ### Native Android Foundation
 
@@ -32,9 +34,9 @@
 - No unrestricted `QUERY_ALL_PACKAGES` and no Android Internet permission.
 - Local processing, provisional 500 ms timeout, label/package matching, and exact component launch actions.
 
-## Contacts / Authority Development Features
+## Contacts / Authority — Current Source
 
-Current `0.3.0-dev` source includes:
+Current source includes:
 
 - `IndexAuthorityRequirement`: Android runtime permission, Privacy Shield, and GoreeCloud Identity.
 - `IndexAuthorityEvidence` outcomes including `ALLOW`, `ALLOW_WITH_CONSTRAINTS`, `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE`.
@@ -48,43 +50,61 @@ Current `0.3.0-dev` source includes:
 - UI disclosure that Contacts remains authority-gated.
 - Neutral authorization-required state distinct from operational provider failure.
 
-Current MainActivity deliberately supplies Privacy Shield and Identity evidence as unavailable. Therefore Contacts source exists, but Contacts search is not represented as an accepted runtime integration.
+The current unavailable platform-authority gateway deliberately keeps Contacts non-dispatchable until accepted Privacy Shield and GoreeCloud Identity evidence can be supplied. Source presence is not represented as accepted Contacts runtime integration.
 
-## Settings · On-device Development Feature
+## Settings · On-device — Current Source
 
-This branch adds a bounded local Android Settings navigation provider:
+Current source includes a bounded local Android Settings navigation provider:
 
-- Static ten-destination catalog: Settings, Wi-Fi, Bluetooth, Display, Sound, Accessibility, Location, Security, Apps, and Battery Saver.
-- Local processing with a provisional 250 ms timeout.
+- Static reviewed destination catalog for Android Settings surfaces.
+- Local processing with a provisional bounded timeout.
 - Blank queries do not enumerate Settings destinations.
 - Search matches only repository-defined destination labels and keywords.
-- No Android Settings values, device-configuration values, accounts, permission state, or other private state are read.
+- No Android Settings values, device-configuration values, accounts, permission state, history, or other private state are read.
 - No new permission, network capability, telemetry, cache, or persistent search history is introduced.
-- Results use typed `SETTING` results and `OpenSystemSetting` actions.
+- Results use typed Settings navigation actions.
 - MainActivity verifies the action against the exact static allowlist before handoff.
 - Arbitrary intent actions, URLs, data URIs, extras, and direct setting mutations are unsupported.
 - Android Settings remains authoritative for every setting and every actual configuration change.
 
-The dedicated source validator fails closed if the provider gains setting-value readers, unrestricted package visibility, networking, arbitrary web destinations, or loses the typed/whitelisted action boundary. JVM tests cover local/non-browsing state, blank-query behavior, matching, result bounds, action uniqueness, and arbitrary-action rejection.
+A dedicated source validator and JVM tests guard the bounded provider/action contract. Representative-device/OEM behavior remains an acceptance gate.
+
+## GLAZE UI V1.3 / 1.3.0 Candidate
+
+This branch reconciles Index presentation source with the live current Stable Glaze authority without changing provider truth or authorization.
+
+- Current Stable target: **GLAZE UI V1.3 / `1.3.0` — Adaptive Resonance**.
+- Exact Stable source integration anchor: `fc7cc91d2eace8da2371371c2855c24cbcb326a1`.
+- Stable aggregate web/runtime identifiers are recorded for provenance; Index remains a native Compose consumer.
+- Rollback baseline: `1.2.0`.
+- Repository-local native contract replaces generic Android dynamic-color sampling with deterministic GoreeCloud-owned Light, Dark, and Deep Dark schemes.
+- Native theme uses neutral-first Deep Teal/Soft Amber atmosphere and 16/24/32 dp optical geometry.
+- 48dp ordinary and 56dp Touch Assistance target floors are encoded in the local contract.
+- Presentation colors do not create or imply provider authorization, Privacy Shield state, Identity state, Wardveil findings, Everkeep state, Mesh state, or Search provenance.
+- Machine-readable Platform declaration remains Development/nonconformant and `applicable-migration-required` until independent acceptance completes.
+
+Exact-head Android/Platform Contract validation, representative rendering, TalkBack/accessibility, 200% text/reflow, RTL/localization, Reduced Motion/Transparency, contrast/high-contrast, form-factor, performance, and production acceptance remain pending until observed.
 
 ## Platform Boundaries
 
-- Privacy Shield remains data-use/consent/purpose/retention authority. The Settings navigation provider adds no new Privacy Shield resource because it searches static GoreeCloud-owned destination metadata and reads no setting state.
-- GoreeCloud Identity remains platform identity and GoreeCloud-level authorization authority; the Settings navigation slice creates no new identity decision.
-- Wardveil Security remains security/trust evidence authority; the Settings handoff is constrained to a closed local action allowlist.
-- Everkeep remains continuity/recovery authority for applicable durable state; this provider creates no durable state.
-- GoreeCloud Mesh may coordinate first-party providers later without taking source ownership; this local Android Settings handoff does not require Mesh.
+- Privacy Shield remains data-use/consent/purpose/retention authority.
+- GoreeCloud Identity remains platform identity and GoreeCloud-level authorization authority.
+- Wardveil Security remains security/trust evidence authority.
+- Everkeep remains continuity/recovery authority for applicable durable state.
+- GoreeCloud Mesh may coordinate first-party providers later without taking source ownership.
 - GoreeCloud Manager does not gain OS configuration authority through Index.
 - GoreeCloud Search remains the Internet/web/current-information authority.
-- GLAZE UI V1.1 / `1.1.0` is the current published Stable consumer target. The immutable `1.1.0` CSS graph has a known import-closure defect, so Index remains fail-closed for current Glaze conformance until a corrected immutable Stable release is published, explicitly re-pinned, and independently revalidated.
+- GLAZE UI governs presentation and interaction contracts, not underlying search/provider truth.
 
-## Accepted Main Evidence
+## Accepted Historical Main Evidence
 
 - Source `cc3cc21d6e11dad026253c3371c3b67663d3b726`
 - Workflow `33431294298`
 - APK SHA-256 `54139051e4243ca83b245338ed5e40680edd4ffd3e673a12dfff6b75eed3e99f`
 - Artifact `9772740479`
 - Artifact digest `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
+
+This evidence is retained for its exact source only and is not automatically evidence for current `main` or the V1.3 candidate.
 
 ## Partial / Not Yet Accepted
 
