@@ -8,6 +8,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
+import java.text.Normalizer
+import java.util.Locale
 
 object GoreeCloudIndexContract {
     const val ACTION_SEARCH = "com.goreecloud.index.action.SEARCH"
@@ -216,11 +218,11 @@ class IndexQueryEngine(
 
 object IndexTextMatcher {
     fun score(query: String, title: String, secondary: String = ""): Int? {
-        val needle = query.trim().lowercase()
+        val needle = normalizeForMatch(query)
         if (needle.isEmpty()) return 100
 
-        val normalizedTitle = title.trim().lowercase()
-        val normalizedSecondary = secondary.trim().lowercase()
+        val normalizedTitle = normalizeForMatch(title)
+        val normalizedSecondary = normalizeForMatch(secondary)
 
         return when {
             normalizedTitle == needle -> 1_000
@@ -233,4 +235,7 @@ object IndexTextMatcher {
             else -> null
         }
     }
+
+    private fun normalizeForMatch(value: String): String =
+        Normalizer.normalize(value.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
 }
