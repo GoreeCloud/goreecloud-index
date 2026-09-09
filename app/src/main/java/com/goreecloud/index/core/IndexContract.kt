@@ -162,7 +162,7 @@ class IndexQueryEngine(
             .awaitAll()
 
         val ranking = compareByDescending<IndexResult> { it.score }
-            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+            .thenBy { normalizedOrderingText(it.title) }
             .thenBy { it.providerId }
 
         val results = outcomes
@@ -236,6 +236,8 @@ object IndexTextMatcher {
         }
     }
 
-    private fun normalizeForMatch(value: String): String =
-        Normalizer.normalize(value.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
+    private fun normalizeForMatch(value: String): String = normalizedOrderingText(value.trim())
 }
+
+private fun normalizedOrderingText(value: String): String =
+    Normalizer.normalize(value, Normalizer.Form.NFC).lowercase(Locale.ROOT)
