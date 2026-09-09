@@ -227,7 +227,7 @@ object IndexTextMatcher {
         return when {
             normalizedTitle == needle -> 1_000
             normalizedTitle.startsWith(needle) -> 850
-            normalizedTitle.split(Regex("\\s+")).any { it.startsWith(needle) } -> 760
+            normalizedTitle.split(INDEX_WORD_BOUNDARY).any { it.startsWith(needle) } -> 760
             normalizedTitle.contains(needle) -> 650
             normalizedSecondary == needle -> 540
             normalizedSecondary.startsWith(needle) -> 500
@@ -237,6 +237,10 @@ object IndexTextMatcher {
     }
 
     private fun normalizeForMatch(value: String): String = normalizedOrderingText(value.trim())
+
+    // Include Unicode separator characters so provider titles copied from contacts/files/media keep
+    // the same word-prefix behavior across NBSP, figure-space, and other separator code points.
+    private val INDEX_WORD_BOUNDARY = Regex("[\\s\\p{Z}]+")
 }
 
 private fun normalizedOrderingText(value: String): String =
