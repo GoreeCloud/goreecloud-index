@@ -164,6 +164,7 @@ class IndexQueryEngine(
         val ranking = compareByDescending<IndexResult> { it.score }
             .thenBy { normalizedOrderingText(it.title) }
             .thenBy { it.providerId }
+            .thenBy { it.id }
 
         val results = outcomes
             .asSequence()
