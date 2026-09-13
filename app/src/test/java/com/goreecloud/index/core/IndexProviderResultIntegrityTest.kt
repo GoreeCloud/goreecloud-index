@@ -54,6 +54,26 @@ class IndexProviderResultIntegrityTest {
     }
 
     @Test
+    fun duplicateProviderResultIdsAreRejectedWithoutSuppressingUniqueSibling() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val ambiguous = provider("apps", "Applications") {
+            listOf(
+                result(id = "duplicate", providerId = "apps", title = "First identity claim"),
+                result(id = "duplicate", providerId = "apps", title = "Second identity claim"),
+                result(id = "unique", providerId = "apps", title = "Unique app"),
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(ambiguous), dispatcher).search(
+            rawQuery = "app",
+            executionContext = contextFor("apps"),
+        )
+
+        assertEquals(listOf("Unique app"), snapshot.results.map { it.title })
+        assertEquals(IndexProviderIssueKind.INVALID_RESULT, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
     fun validProviderResultsDoNotCreateIntegrityIssue() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val healthy = provider("settings", "Settings") {
