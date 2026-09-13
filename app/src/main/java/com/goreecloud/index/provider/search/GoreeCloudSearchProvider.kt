@@ -12,6 +12,7 @@ import com.goreecloud.index.core.IndexTextMatcher
 import java.net.URI
 import java.util.Locale
 
+internal const val GOREECLOUD_SEARCH_API_VERSION = "1"
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
 private const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
 
@@ -36,6 +37,7 @@ data class GoreeCloudSearchResult(
 )
 
 data class GoreeCloudSearchResponse(
+    val apiVersion: String,
     val query: String,
     val category: String,
     val results: List<GoreeCloudSearchResult>,
@@ -68,6 +70,9 @@ class GoreeCloudSearchProvider(
         )
         val response = client.search(request)
 
+        check(response.apiVersion == GOREECLOUD_SEARCH_API_VERSION) {
+            "GoreeCloud Search response API version is not supported"
+        }
         check(response.query == request.query) {
             "GoreeCloud Search response query does not match the delegated query"
         }
