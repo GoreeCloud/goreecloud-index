@@ -146,6 +146,7 @@ fun IndexRoot(
                                 it.kind == IndexProviderIssueKind.FAILED ||
                                     it.kind == IndexProviderIssueKind.TIMED_OUT ||
                                     it.kind == IndexProviderIssueKind.INCOMPATIBLE_CONTRACT ||
+                                    it.kind == IndexProviderIssueKind.DEGRADED ||
                                     it.kind == IndexProviderIssueKind.INVALID_RESULT
                             } -> "Some search sources are temporarily unavailable"
                             query.isBlank() -> "Start typing to search authorized sources"
@@ -221,12 +222,14 @@ private fun SourceStatusCard() {
 
 @Composable
 private fun ProviderIssueCard(issue: IndexProviderIssue) {
-    val authorizationRequired = issue.kind == IndexProviderIssueKind.AUTHORIZATION_REQUIRED
+    val informational = issue.kind == IndexProviderIssueKind.AUTHORIZATION_REQUIRED ||
+        issue.kind == IndexProviderIssueKind.DEGRADED
     val title = when (issue.kind) {
         IndexProviderIssueKind.FAILED -> "${issue.providerName} temporarily unavailable"
         IndexProviderIssueKind.TIMED_OUT -> "${issue.providerName} took too long"
         IndexProviderIssueKind.AUTHORIZATION_REQUIRED -> "${issue.providerName} not enabled"
         IndexProviderIssueKind.INCOMPATIBLE_CONTRACT -> "${issue.providerName} needs an update"
+        IndexProviderIssueKind.DEGRADED -> "${issue.providerName} is partially available"
         IndexProviderIssueKind.INVALID_RESULT -> "${issue.providerName} returned invalid results"
     }
     val detail = when (issue.kind) {
@@ -238,15 +241,17 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
             "Required permission or platform authority evidence is incomplete, so Index did not send this provider the query."
         IndexProviderIssueKind.INCOMPATIBLE_CONTRACT ->
             "This provider does not declare the current Index provider contract, so Index did not send it the query."
+        IndexProviderIssueKind.DEGRADED ->
+            "Some upstream sources were unavailable, so Index kept the valid results that GoreeCloud Search could still return."
         IndexProviderIssueKind.INVALID_RESULT ->
             "Index rejected results that failed provider provenance or required identity and title checks, while preserving valid results from healthy sources."
     }
-    val containerColor = if (authorizationRequired) {
+    val containerColor = if (informational) {
         MaterialTheme.colorScheme.surfaceContainerHigh
     } else {
         MaterialTheme.colorScheme.errorContainer
     }
-    val contentColor = if (authorizationRequired) {
+    val contentColor = if (informational) {
         MaterialTheme.colorScheme.onSurface
     } else {
         MaterialTheme.colorScheme.onErrorContainer

@@ -45,6 +45,7 @@ enum class IndexProviderIssueKind {
     TIMED_OUT,
     AUTHORIZATION_REQUIRED,
     INCOMPATIBLE_CONTRACT,
+    DEGRADED,
     INVALID_RESULT,
 }
 
@@ -80,6 +81,11 @@ data class IndexResult(
 data class IndexQuery(
     val text: String,
     val maxResults: Int = 50,
+)
+
+data class IndexProviderResponse(
+    val results: List<IndexResult> = emptyList(),
+    val degraded: Boolean = false,
 )
 
 data class IndexExecutionContext(
@@ -135,6 +141,13 @@ interface IndexProvider {
     val supportsEmptyQuery: Boolean
         get() = true
     suspend fun search(query: IndexQuery): List<IndexResult>
+}
+
+interface IndexStatusAwareProvider : IndexProvider {
+    suspend fun searchWithStatus(query: IndexQuery): IndexProviderResponse
+
+    override suspend fun search(query: IndexQuery): List<IndexResult> =
+        searchWithStatus(query).results
 }
 
 private data class IndexProviderOutcome(
@@ -228,26 +241,35 @@ class IndexQueryEngine(
         query: IndexQuery,
     ): IndexProviderOutcome = try {
         val timeoutMillis = provider.timeoutMillis.coerceIn(1L, MAX_PROVIDER_TIMEOUT_MILLIS)
-        val providerResults = withTimeout(timeoutMillis) {
-            provider.search(query)
+        val providerResponse = withTimeout(timeoutMillis) {
+            if (provider is IndexStatusAwareProvider) {
+                provider.searchWithStatus(query)
+            } else {
+                IndexProviderResponse(results = provider.search(query))
+            }
         }
-        val validResults = providerResults.filter { result ->
+        val validResults = providerResponse.results.filter { result ->
             result.providerId == provider.providerId &&
                 result.id.isNotBlank() &&
                 result.title.isNotBlank()
         }
+        val issue = when {
+            validResults.size != providerResponse.results.size -> IndexProviderIssue(
+                providerId = provider.providerId,
+                providerName = provider.displayName,
+                kind = IndexProviderIssueKind.INVALID_RESULT,
+            )
+            providerResponse.degraded -> IndexProviderIssue(
+                providerId = provider.providerId,
+                providerName = provider.displayName,
+                kind = IndexProviderIssueKind.DEGRADED,
+            )
+            else -> null
+        }
 
         IndexProviderOutcome(
             results = validResults,
-            issue = if (validResults.size == providerResults.size) {
-                null
-            } else {
-                IndexProviderIssue(
-                    providerId = provider.providerId,
-                    providerName = provider.displayName,
-                    kind = IndexProviderIssueKind.INVALID_RESULT,
-                )
-            },
+            issue = issue,
         )
     } catch (_: TimeoutCancellationException) {
         IndexProviderOutcome(

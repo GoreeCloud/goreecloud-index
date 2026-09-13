@@ -126,6 +126,61 @@ class GoreeCloudSearchProviderTest {
     }
 
     @Test
+    fun degradedSearchResponsePreservesValidResultsAndReportsPartialAvailability() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val provider = GoreeCloudSearchProvider { request ->
+            GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
+                query = request.query,
+                category = request.category,
+                results = listOf(
+                    GoreeCloudSearchResult(
+                        title = "GoreeCloud documentation",
+                        url = "https://docs.example.com/goreecloud",
+                        snippet = "Available from a healthy upstream source",
+                    ),
+                ),
+                degraded = true,
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "goreecloud",
+            executionContext = authorizedRemoteContext(),
+        )
+
+        assertEquals(listOf("GoreeCloud documentation"), snapshot.results.map { it.title })
+        assertEquals(1, snapshot.providerIssues.size)
+        assertEquals(IndexProviderIssueKind.DEGRADED, snapshot.providerIssues.single().kind)
+        assertEquals(GoreeCloudIndexContract.PROVIDER_SEARCH, snapshot.providerIssues.single().providerId)
+    }
+
+    @Test
+    fun invalidResultTakesPrecedenceOverDegradedSignalWhileValidSiblingSurvives() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val provider = GoreeCloudSearchProvider { request ->
+            GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
+                query = request.query,
+                category = request.category,
+                results = listOf(
+                    GoreeCloudSearchResult("Unsafe", "javascript:alert(1)"),
+                    GoreeCloudSearchResult("Valid", "https://example.com/valid"),
+                ),
+                degraded = true,
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "valid",
+            executionContext = authorizedRemoteContext(),
+        )
+
+        assertEquals(listOf("Valid"), snapshot.results.map { it.title })
+        assertEquals(IndexProviderIssueKind.INVALID_RESULT, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
     fun incompatibleSearchApiVersionFailsProviderClosed() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val provider = GoreeCloudSearchProvider { request ->

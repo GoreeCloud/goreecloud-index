@@ -4,10 +4,11 @@ import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
 import com.goreecloud.index.core.IndexAuthorityRequirement
 import com.goreecloud.index.core.IndexProcessingLocation
-import com.goreecloud.index.core.IndexProvider
+import com.goreecloud.index.core.IndexProviderResponse
 import com.goreecloud.index.core.IndexQuery
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
+import com.goreecloud.index.core.IndexStatusAwareProvider
 import com.goreecloud.index.core.IndexTextMatcher
 import java.net.URI
 import java.util.Locale
@@ -50,7 +51,7 @@ fun interface GoreeCloudSearchClient {
 
 class GoreeCloudSearchProvider(
     private val client: GoreeCloudSearchClient,
-) : IndexProvider {
+) : IndexStatusAwareProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_SEARCH
     override val displayName: String = "GoreeCloud Search"
     override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.REMOTE
@@ -60,7 +61,7 @@ class GoreeCloudSearchProvider(
         setOf(IndexAuthorityRequirement.PRIVACY_SHIELD)
     override val supportsEmptyQuery: Boolean = false
 
-    override suspend fun search(query: IndexQuery): List<IndexResult> {
+    override suspend fun searchWithStatus(query: IndexQuery): IndexProviderResponse {
         val normalizedQuery = query.text.trim()
         require(normalizedQuery.isNotEmpty()) { "GoreeCloud Search requires a non-empty query" }
         val limit = query.maxResults.coerceIn(1, GOREECLOUD_SEARCH_MAX_RESULTS)
@@ -81,11 +82,14 @@ class GoreeCloudSearchProvider(
             "GoreeCloud Search response category does not match the delegated category"
         }
 
-        return response.results
-            .asSequence()
-            .take(limit)
-            .map { result -> result.toIndexResult(normalizedQuery) }
-            .toList()
+        return IndexProviderResponse(
+            results = response.results
+                .asSequence()
+                .take(limit)
+                .map { result -> result.toIndexResult(normalizedQuery) }
+                .toList(),
+            degraded = response.degraded,
+        )
     }
 
     private fun GoreeCloudSearchResult.toIndexResult(query: String): IndexResult {
