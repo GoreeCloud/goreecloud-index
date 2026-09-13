@@ -12,6 +12,9 @@ import com.goreecloud.index.core.IndexTextMatcher
 import java.net.URI
 import java.util.Locale
 
+private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
+private const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
+
 /**
  * The only data Index needs to send to GoreeCloud Search for the initial
  * Internet-provider contract. Keeping this transport-neutral request narrow is
@@ -21,7 +24,7 @@ import java.util.Locale
  */
 data class GoreeCloudSearchRequest(
     val query: String,
-    val category: String = GENERAL_CATEGORY,
+    val category: String = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
     val limit: Int,
 )
 
@@ -57,10 +60,10 @@ class GoreeCloudSearchProvider(
     override suspend fun search(query: IndexQuery): List<IndexResult> {
         val normalizedQuery = query.text.trim()
         require(normalizedQuery.isNotEmpty()) { "GoreeCloud Search requires a non-empty query" }
-        val limit = query.maxResults.coerceIn(1, MAX_RESULTS)
+        val limit = query.maxResults.coerceIn(1, GOREECLOUD_SEARCH_MAX_RESULTS)
         val request = GoreeCloudSearchRequest(
             query = normalizedQuery,
-            category = GENERAL_CATEGORY,
+            category = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
             limit = limit,
         )
         val response = client.search(request)
@@ -107,10 +110,5 @@ class GoreeCloudSearchProvider(
         if (uri.host.isNullOrBlank()) return null
         if (uri.userInfo != null) return null
         return uri.normalize().toASCIIString()
-    }
-
-    private companion object {
-        const val GENERAL_CATEGORY = "general"
-        const val MAX_RESULTS = 100
     }
 }
