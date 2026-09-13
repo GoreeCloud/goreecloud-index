@@ -144,7 +144,8 @@ fun IndexRoot(
                             searching -> "Searching…"
                             snapshot.providerIssues.any {
                                 it.kind == IndexProviderIssueKind.FAILED ||
-                                    it.kind == IndexProviderIssueKind.TIMED_OUT
+                                    it.kind == IndexProviderIssueKind.TIMED_OUT ||
+                                    it.kind == IndexProviderIssueKind.INVALID_RESULT
                             } -> "Some search sources are temporarily unavailable"
                             query.isBlank() -> "Start typing to search authorized sources"
                             else -> "No matches in available sources"
@@ -224,6 +225,7 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
         IndexProviderIssueKind.FAILED -> "${issue.providerName} temporarily unavailable"
         IndexProviderIssueKind.TIMED_OUT -> "${issue.providerName} took too long"
         IndexProviderIssueKind.AUTHORIZATION_REQUIRED -> "${issue.providerName} not enabled"
+        IndexProviderIssueKind.INVALID_RESULT -> "${issue.providerName} returned invalid results"
     }
     val detail = when (issue.kind) {
         IndexProviderIssueKind.FAILED ->
@@ -232,6 +234,8 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
             "Index stopped waiting at the provider's bounded timeout and kept results from healthy providers."
         IndexProviderIssueKind.AUTHORIZATION_REQUIRED ->
             "Required permission or platform authority evidence is incomplete, so Index did not send this provider the query."
+        IndexProviderIssueKind.INVALID_RESULT ->
+            "Index rejected results that failed provider provenance or required identity and title checks, while preserving valid results from healthy sources."
     }
     val containerColor = if (authorizationRequired) {
         MaterialTheme.colorScheme.surfaceContainerHigh

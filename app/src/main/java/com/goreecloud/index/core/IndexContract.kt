@@ -42,6 +42,7 @@ enum class IndexProviderIssueKind {
     FAILED,
     TIMED_OUT,
     AUTHORIZATION_REQUIRED,
+    INVALID_RESULT,
 }
 
 sealed interface IndexAction {
@@ -186,9 +187,25 @@ class IndexQueryEngine(
         query: IndexQuery,
     ): IndexProviderOutcome = try {
         val timeoutMillis = provider.timeoutMillis.coerceIn(1L, MAX_PROVIDER_TIMEOUT_MILLIS)
+        val providerResults = withTimeout(timeoutMillis) {
+            provider.search(query)
+        }
+        val validResults = providerResults.filter { result ->
+            result.providerId == provider.providerId &&
+                result.id.isNotBlank() &&
+                result.title.isNotBlank()
+        }
+
         IndexProviderOutcome(
-            results = withTimeout(timeoutMillis) {
-                provider.search(query)
+            results = validResults,
+            issue = if (validResults.size == providerResults.size) {
+                null
+            } else {
+                IndexProviderIssue(
+                    providerId = provider.providerId,
+                    providerName = provider.displayName,
+                    kind = IndexProviderIssueKind.INVALID_RESULT,
+                )
             },
         )
     } catch (_: TimeoutCancellationException) {
