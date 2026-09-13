@@ -35,6 +35,7 @@ class IndexQueryNormalizerTest {
             override val displayName = "Test"
             override val processingLocation = IndexProcessingLocation.LOCAL
             override val timeoutMillis = 1_000L
+            override val contractVersion = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
 
             override suspend fun search(query: IndexQuery): List<IndexResult> {
                 observedQuery = query
