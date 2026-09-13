@@ -22,6 +22,7 @@ class SystemSettingsProvider : IndexProvider {
     override val displayName: String = "Settings · On-device"
     override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.LOCAL
     override val timeoutMillis: Long = 250L
+    override val contractVersion: Int = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
     override val supportsEmptyQuery: Boolean = false
 
     override suspend fun search(query: IndexQuery): List<IndexResult> {
