@@ -23,6 +23,7 @@ class ContactsProvider(
     override val displayName: String = "Contacts"
     override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.LOCAL
     override val timeoutMillis: Long = 750L
+    override val contractVersion: Int = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
     override val supportsEmptyQuery: Boolean = false
     override val authorityRequirements: Set<IndexAuthorityRequirement> = setOf(
         IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
