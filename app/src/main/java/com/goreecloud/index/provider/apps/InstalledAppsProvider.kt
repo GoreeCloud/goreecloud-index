@@ -32,6 +32,7 @@ class InstalledAppsProvider(
     override val displayName: String = "Applications"
     override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.LOCAL
     override val timeoutMillis: Long = 500L
+    override val contractVersion: Int = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
 
     @Volatile
     private var entries: List<InstalledAppEntry> = discoverApps()

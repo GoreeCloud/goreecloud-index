@@ -145,6 +145,7 @@ fun IndexRoot(
                             snapshot.providerIssues.any {
                                 it.kind == IndexProviderIssueKind.FAILED ||
                                     it.kind == IndexProviderIssueKind.TIMED_OUT ||
+                                    it.kind == IndexProviderIssueKind.INCOMPATIBLE_CONTRACT ||
                                     it.kind == IndexProviderIssueKind.INVALID_RESULT
                             } -> "Some search sources are temporarily unavailable"
                             query.isBlank() -> "Start typing to search authorized sources"
@@ -225,6 +226,7 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
         IndexProviderIssueKind.FAILED -> "${issue.providerName} temporarily unavailable"
         IndexProviderIssueKind.TIMED_OUT -> "${issue.providerName} took too long"
         IndexProviderIssueKind.AUTHORIZATION_REQUIRED -> "${issue.providerName} not enabled"
+        IndexProviderIssueKind.INCOMPATIBLE_CONTRACT -> "${issue.providerName} needs an update"
         IndexProviderIssueKind.INVALID_RESULT -> "${issue.providerName} returned invalid results"
     }
     val detail = when (issue.kind) {
@@ -234,6 +236,8 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
             "Index stopped waiting at the provider's bounded timeout and kept results from healthy providers."
         IndexProviderIssueKind.AUTHORIZATION_REQUIRED ->
             "Required permission or platform authority evidence is incomplete, so Index did not send this provider the query."
+        IndexProviderIssueKind.INCOMPATIBLE_CONTRACT ->
+            "This provider does not declare the current Index provider contract, so Index did not send it the query."
         IndexProviderIssueKind.INVALID_RESULT ->
             "Index rejected results that failed provider provenance or required identity and title checks, while preserving valid results from healthy sources."
     }

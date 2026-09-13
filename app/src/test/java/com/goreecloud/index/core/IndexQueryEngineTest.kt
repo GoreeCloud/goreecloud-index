@@ -170,6 +170,31 @@ class IndexQueryEngineTest {
     }
 
     @Test
+    fun incompatibleProviderContractFailsClosedBeforeDispatch() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var invoked = false
+        val incompatible = provider(
+            id = "future",
+            name = "Future provider",
+            contractVersion = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION + 1,
+        ) {
+            invoked = true
+            listOf(result("one", "future", "Should not appear", 900))
+        }
+
+        val snapshot = IndexQueryEngine(listOf(incompatible), dispatcher).search(
+            rawQuery = "future",
+            executionContext = contextFor("future"),
+        )
+
+        assertFalse(invoked)
+        assertTrue(snapshot.results.isEmpty())
+        assertEquals(1, snapshot.providerIssues.size)
+        assertEquals(IndexProviderIssueKind.INCOMPATIBLE_CONTRACT, snapshot.providerIssues.single().kind)
+        assertEquals("future", snapshot.providerIssues.single().providerId)
+    }
+
+    @Test
     fun authorityGatedProviderIsNotDispatchedWithoutEvidence() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         var invoked = false
@@ -358,6 +383,7 @@ class IndexQueryEngineTest {
         name: String,
         location: IndexProcessingLocation = IndexProcessingLocation.LOCAL,
         providerTimeoutMillis: Long = 1_000L,
+        contractVersion: Int = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION,
         requirements: Set<IndexAuthorityRequirement> = emptySet(),
         emptyQuery: Boolean = true,
         block: suspend (IndexQuery) -> List<IndexResult>,
@@ -366,6 +392,7 @@ class IndexQueryEngineTest {
         override val displayName: String = name
         override val processingLocation: IndexProcessingLocation = location
         override val timeoutMillis: Long = providerTimeoutMillis
+        override val contractVersion: Int = contractVersion
         override val authorityRequirements: Set<IndexAuthorityRequirement> = requirements
         override val supportsEmptyQuery: Boolean = emptyQuery
         override suspend fun search(query: IndexQuery): List<IndexResult> = block(query)

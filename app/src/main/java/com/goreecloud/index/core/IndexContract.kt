@@ -18,6 +18,7 @@ object GoreeCloudIndexContract {
     const val PROVIDER_CONTACTS = "goreecloud.index.provider.contacts"
     const val PROVIDER_SETTINGS = "goreecloud.index.provider.settings"
     const val PROVIDER_SEARCH = "goreecloud.index.provider.search"
+    const val PROVIDER_CONTRACT_VERSION = 1
 }
 
 enum class IndexResultType {
@@ -43,6 +44,7 @@ enum class IndexProviderIssueKind {
     FAILED,
     TIMED_OUT,
     AUTHORIZATION_REQUIRED,
+    INCOMPATIBLE_CONTRACT,
     INVALID_RESULT,
 }
 
@@ -85,16 +87,18 @@ data class IndexExecutionContext(
     val localOnly: Boolean = true,
     val providerAuthorities: Map<String, IndexProviderAuthority> = emptyMap(),
 ) {
-    fun allows(provider: IndexProvider): Boolean =
+    fun isInScope(provider: IndexProvider): Boolean =
         provider.providerId in allowedProviderIds &&
-            (!localOnly || provider.processingLocation == IndexProcessingLocation.LOCAL) &&
+            (!localOnly || provider.processingLocation == IndexProcessingLocation.LOCAL)
+
+    fun allows(provider: IndexProvider): Boolean =
+        isInScope(provider) &&
             providerAuthorities
                 .getOrDefault(provider.providerId, IndexProviderAuthority())
                 .satisfiesAll(provider.authorityRequirements)
 
     fun authorizationIssue(provider: IndexProvider): IndexProviderIssue? {
-        if (provider.providerId !in allowedProviderIds) return null
-        if (localOnly && provider.processingLocation != IndexProcessingLocation.LOCAL) return null
+        if (!isInScope(provider)) return null
         if (provider.authorityRequirements.isEmpty()) return null
 
         val authority = providerAuthorities.getOrDefault(provider.providerId, IndexProviderAuthority())
@@ -124,6 +128,8 @@ interface IndexProvider {
     val displayName: String
     val processingLocation: IndexProcessingLocation
     val timeoutMillis: Long
+    val contractVersion: Int
+        get() = 0
     val authorityRequirements: Set<IndexAuthorityRequirement>
         get() = emptySet()
     val supportsEmptyQuery: Boolean
@@ -158,10 +164,13 @@ class IndexQueryEngine(
         val applicableProviders = providers.filter { provider ->
             query.text.isNotEmpty() || provider.supportsEmptyQuery
         }
-        val authorizationIssues = applicableProviders
+        val scopedProviders = applicableProviders.filter(executionContext::isInScope)
+        val compatibilityIssues = scopedProviders.mapNotNull(::compatibilityIssue)
+        val compatibleProviders = scopedProviders.filter(::isCompatibleProvider)
+        val authorizationIssues = compatibleProviders
             .mapNotNull(executionContext::authorizationIssue)
 
-        val outcomes = applicableProviders
+        val outcomes = compatibleProviders
             .asSequence()
             .filter(executionContext::allows)
             .map { provider ->
@@ -194,8 +203,23 @@ class IndexQueryEngine(
 
         IndexSearchSnapshot(
             results = results,
-            providerIssues = (authorizationIssues + outcomes.mapNotNull { it.issue })
-                .distinctBy { it.providerId },
+            providerIssues = (
+                compatibilityIssues +
+                    authorizationIssues +
+                    outcomes.mapNotNull { it.issue }
+                ).distinctBy { it.providerId },
+        )
+    }
+
+    private fun isCompatibleProvider(provider: IndexProvider): Boolean =
+        provider.contractVersion == GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
+
+    private fun compatibilityIssue(provider: IndexProvider): IndexProviderIssue? {
+        if (isCompatibleProvider(provider)) return null
+        return IndexProviderIssue(
+            providerId = provider.providerId,
+            providerName = provider.displayName,
+            kind = IndexProviderIssueKind.INCOMPATIBLE_CONTRACT,
         )
     }
 
