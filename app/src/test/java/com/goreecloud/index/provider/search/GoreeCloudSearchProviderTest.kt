@@ -25,7 +25,7 @@ import org.junit.Test
 class GoreeCloudSearchProviderTest {
     @Test
     fun providerMetadataKeepsInternetSearchRemoteAndPrivacyShieldGated() {
-        val provider = GoreeCloudSearchProvider { request -> emptyResponse(request) }
+        val provider = searchProvider { request -> emptyResponse(request) }
 
         assertEquals(GoreeCloudIndexContract.PROVIDER_SEARCH, provider.providerId)
         assertEquals("GoreeCloud Search", provider.displayName)
@@ -36,11 +36,14 @@ class GoreeCloudSearchProviderTest {
     }
 
     @Test
-    fun localOnlyExecutionDoesNotCallSearchOrPretendRemoteResultsAreLocal() = runTest {
+    fun localOnlyExecutionDoesNotPerformCapabilityPreflightOrSearch() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        var calls = 0
-        val provider = GoreeCloudSearchProvider { request ->
-            calls++
+        var capabilityCalls = 0
+        var searchCalls = 0
+        val provider = searchProvider(
+            onCapability = { capabilityCalls++ },
+        ) { request ->
+            searchCalls++
             emptyResponse(request)
         }
 
@@ -52,17 +55,21 @@ class GoreeCloudSearchProviderTest {
             ),
         )
 
-        assertEquals(0, calls)
+        assertEquals(0, capabilityCalls)
+        assertEquals(0, searchCalls)
         assertTrue(snapshot.results.isEmpty())
         assertTrue(snapshot.providerIssues.isEmpty())
     }
 
     @Test
-    fun missingPrivacyShieldEvidenceFailsClosedBeforeSearchClientCall() = runTest {
+    fun missingPrivacyShieldEvidenceFailsClosedBeforeCapabilityPreflightOrSearch() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        var calls = 0
-        val provider = GoreeCloudSearchProvider { request ->
-            calls++
+        var capabilityCalls = 0
+        var searchCalls = 0
+        val provider = searchProvider(
+            onCapability = { capabilityCalls++ },
+        ) { request ->
+            searchCalls++
             emptyResponse(request)
         }
 
@@ -74,7 +81,8 @@ class GoreeCloudSearchProviderTest {
             ),
         )
 
-        assertEquals(0, calls)
+        assertEquals(0, capabilityCalls)
+        assertEquals(0, searchCalls)
         assertTrue(snapshot.results.isEmpty())
         assertEquals(1, snapshot.providerIssues.size)
         assertEquals(IndexProviderIssueKind.AUTHORIZATION_REQUIRED, snapshot.providerIssues.single().kind)
@@ -82,10 +90,13 @@ class GoreeCloudSearchProviderTest {
     }
 
     @Test
-    fun authorizedDelegationSendsOnlyNormalizedQueryGeneralCategoryAndLimit() = runTest {
+    fun authorizedDelegationPreflightsCapabilityThenSendsMinimizedQuery() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        var capabilityCalls = 0
         var observed: GoreeCloudSearchRequest? = null
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider(
+            onCapability = { capabilityCalls++ },
+        ) { request ->
             observed = request
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
@@ -108,6 +119,7 @@ class GoreeCloudSearchProviderTest {
             maxResults = 7,
         )
 
+        assertEquals(1, capabilityCalls)
         assertEquals(
             GoreeCloudSearchRequest(
                 query = "goreecloud",
@@ -126,9 +138,93 @@ class GoreeCloudSearchProviderTest {
     }
 
     @Test
+    fun incompatibleCapabilityFailsClosedBeforeSearchClientCall() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var searchCalls = 0
+        val provider = searchProvider(
+            capability = compatibleCapability().copy(contractVersion = "2"),
+        ) { request ->
+            searchCalls++
+            emptyResponse(request)
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "goreecloud",
+            executionContext = authorizedRemoteContext(),
+        )
+
+        assertEquals(0, searchCalls)
+        assertTrue(snapshot.results.isEmpty())
+        assertEquals(IndexProviderIssueKind.FAILED, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
+    fun nonCurrentCapabilityFailsClosedBeforeSearchClientCall() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var searchCalls = 0
+        val provider = searchProvider(
+            capability = compatibleCapability().copy(current = false),
+        ) { request ->
+            searchCalls++
+            emptyResponse(request)
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "goreecloud",
+            executionContext = authorizedRemoteContext(),
+        )
+
+        assertEquals(0, searchCalls)
+        assertTrue(snapshot.results.isEmpty())
+        assertEquals(IndexProviderIssueKind.FAILED, snapshot.providerIssues.single().kind)
+    }
+
+    @Test
+    fun publishedCapabilityResultBoundLowersDelegatedLimit() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var observed: GoreeCloudSearchRequest? = null
+        val provider = searchProvider(
+            capability = compatibleCapability(maxResults = 2),
+        ) { request ->
+            observed = request
+            GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
+                query = request.query,
+                category = request.category,
+                results = listOf(
+                    GoreeCloudSearchResult("One", "https://example.com/1"),
+                    GoreeCloudSearchResult("Two", "https://example.com/2"),
+                    GoreeCloudSearchResult("Three", "https://example.com/3"),
+                ),
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "example",
+            executionContext = authorizedRemoteContext(),
+            maxResults = 7,
+        )
+
+        assertEquals(2, observed?.limit)
+        assertEquals(2, snapshot.results.size)
+    }
+
+    @Test
+    fun developmentCapabilityDoesNotPretendProductionAcceptanceIsRequired() = runTest {
+        val provider = searchProvider(
+            capability = compatibleCapability().copy(productionAccepted = false),
+        ) { request -> emptyResponse(request) }
+
+        val response = provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
+
+        assertTrue(response.results.isEmpty())
+        assertFalse(response.degraded)
+    }
+
+    @Test
     fun degradedSearchResponsePreservesValidResultsAndReportsPartialAvailability() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
@@ -158,7 +254,7 @@ class GoreeCloudSearchProviderTest {
     @Test
     fun invalidResultTakesPrecedenceOverDegradedSignalWhileValidSiblingSurvives() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
@@ -183,7 +279,7 @@ class GoreeCloudSearchProviderTest {
     @Test
     fun incompatibleSearchApiVersionFailsProviderClosed() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = "2",
                 query = request.query,
@@ -211,7 +307,7 @@ class GoreeCloudSearchProviderTest {
     @Test
     fun mismatchedSearchResponseFailsProviderClosed() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = "different query",
@@ -233,7 +329,7 @@ class GoreeCloudSearchProviderTest {
     @Test
     fun unsafeWebResultIsRejectedWithoutSuppressingValidSibling() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
@@ -266,7 +362,7 @@ class GoreeCloudSearchProviderTest {
 
     @Test
     fun providerCapsResponseToDelegatedLimit() = runTest {
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
@@ -287,7 +383,7 @@ class GoreeCloudSearchProviderTest {
 
     @Test
     fun unsafeUserInfoURLCannotBecomeExecutableWebAction() = runTest {
-        val provider = GoreeCloudSearchProvider { request ->
+        val provider = searchProvider { request ->
             GoreeCloudSearchResponse(
                 apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
@@ -303,6 +399,30 @@ class GoreeCloudSearchProviderTest {
         assertEquals("", result.id)
         assertNull(result.action)
     }
+
+    private fun searchProvider(
+        capability: GoreeCloudSearchCapability? = null,
+        onCapability: (() -> Unit)? = null,
+        block: suspend (GoreeCloudSearchRequest) -> GoreeCloudSearchResponse,
+    ): GoreeCloudSearchProvider = GoreeCloudSearchProvider(
+        client = GoreeCloudSearchClient { request -> block(request) },
+        capabilityClient = GoreeCloudSearchCapabilityClient {
+            onCapability?.invoke()
+            capability ?: compatibleCapability()
+        },
+    )
+
+    private fun compatibleCapability(
+        maxResults: Int = GOREECLOUD_SEARCH_MAX_RESULTS,
+    ): GoreeCloudSearchCapability = GoreeCloudSearchCapability(
+        id = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
+        contractVersion = GOREECLOUD_SEARCH_API_VERSION,
+        authoritative = true,
+        current = true,
+        endpoint = GOREECLOUD_SEARCH_QUERY_ENDPOINT,
+        maxResults = maxResults,
+        productionAccepted = false,
+    )
 
     private fun authorizedRemoteContext(): IndexExecutionContext = IndexExecutionContext(
         allowedProviderIds = setOf(GoreeCloudIndexContract.PROVIDER_SEARCH),

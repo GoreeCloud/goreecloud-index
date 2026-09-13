@@ -14,8 +14,10 @@ import java.net.URI
 import java.util.Locale
 
 internal const val GOREECLOUD_SEARCH_API_VERSION = "1"
+internal const val GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID = "search.query"
+internal const val GOREECLOUD_SEARCH_QUERY_ENDPOINT = "/api/v1/search"
+internal const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
-private const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
 
 /**
  * The only data Index needs to send to GoreeCloud Search for the initial
@@ -45,12 +47,27 @@ data class GoreeCloudSearchResponse(
     val degraded: Boolean = false,
 )
 
+data class GoreeCloudSearchCapability(
+    val id: String,
+    val contractVersion: String,
+    val authoritative: Boolean,
+    val current: Boolean,
+    val endpoint: String,
+    val maxResults: Int,
+    val productionAccepted: Boolean,
+)
+
 fun interface GoreeCloudSearchClient {
     suspend fun search(request: GoreeCloudSearchRequest): GoreeCloudSearchResponse
 }
 
+fun interface GoreeCloudSearchCapabilityClient {
+    suspend fun queryCapability(): GoreeCloudSearchCapability
+}
+
 class GoreeCloudSearchProvider(
     private val client: GoreeCloudSearchClient,
+    private val capabilityClient: GoreeCloudSearchCapabilityClient,
 ) : IndexStatusAwareProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_SEARCH
     override val displayName: String = "GoreeCloud Search"
@@ -64,7 +81,13 @@ class GoreeCloudSearchProvider(
     override suspend fun searchWithStatus(query: IndexQuery): IndexProviderResponse {
         val normalizedQuery = query.text.trim()
         require(normalizedQuery.isNotEmpty()) { "GoreeCloud Search requires a non-empty query" }
-        val limit = query.maxResults.coerceIn(1, GOREECLOUD_SEARCH_MAX_RESULTS)
+
+        val capability = capabilityClient.queryCapability()
+        validateCapability(capability)
+        val limit = minOf(
+            query.maxResults.coerceIn(1, GOREECLOUD_SEARCH_MAX_RESULTS),
+            capability.maxResults,
+        )
         val request = GoreeCloudSearchRequest(
             query = normalizedQuery,
             category = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
@@ -90,6 +113,24 @@ class GoreeCloudSearchProvider(
                 .toList(),
             degraded = response.degraded,
         )
+    }
+
+    private fun validateCapability(capability: GoreeCloudSearchCapability) {
+        check(capability.id == GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID) {
+            "GoreeCloud Search query capability is unavailable"
+        }
+        check(capability.contractVersion == GOREECLOUD_SEARCH_API_VERSION) {
+            "GoreeCloud Search capability contract version is not supported"
+        }
+        check(capability.authoritative && capability.current) {
+            "GoreeCloud Search query capability is not current and authoritative"
+        }
+        check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
+            "GoreeCloud Search query endpoint is incompatible"
+        }
+        check(capability.maxResults >= 1) {
+            "GoreeCloud Search result capability is invalid"
+        }
     }
 
     private fun GoreeCloudSearchResult.toIndexResult(query: String): IndexResult {
