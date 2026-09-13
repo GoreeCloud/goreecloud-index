@@ -1,5 +1,7 @@
 package com.goreecloud.index.core
 
+import java.text.Normalizer
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -138,7 +140,7 @@ class IndexQueryEngine(
         maxResults: Int = 50,
     ): IndexSearchSnapshot = supervisorScope {
         val query = IndexQuery(
-            text = rawQuery.trim(),
+            text = IndexQueryNormalizer.normalize(rawQuery),
             maxResults = maxResults.coerceIn(1, MAX_RESULTS),
         )
 
@@ -214,18 +216,31 @@ class IndexQueryEngine(
     }
 }
 
+object IndexQueryNormalizer {
+    private val whitespace = Regex("\\s+")
+
+    fun normalize(value: String): String =
+        whitespace.replace(
+            Normalizer.normalize(value, Normalizer.Form.NFKC).trim(),
+            " ",
+        )
+
+    fun normalizeForMatching(value: String): String =
+        normalize(value).lowercase(Locale.ROOT)
+}
+
 object IndexTextMatcher {
     fun score(query: String, title: String, secondary: String = ""): Int? {
-        val needle = query.trim().lowercase()
+        val needle = IndexQueryNormalizer.normalizeForMatching(query)
         if (needle.isEmpty()) return 100
 
-        val normalizedTitle = title.trim().lowercase()
-        val normalizedSecondary = secondary.trim().lowercase()
+        val normalizedTitle = IndexQueryNormalizer.normalizeForMatching(title)
+        val normalizedSecondary = IndexQueryNormalizer.normalizeForMatching(secondary)
 
         return when {
             normalizedTitle == needle -> 1_000
             normalizedTitle.startsWith(needle) -> 850
-            normalizedTitle.split(Regex("\\s+")).any { it.startsWith(needle) } -> 760
+            normalizedTitle.split(' ').any { it.startsWith(needle) } -> 760
             normalizedTitle.contains(needle) -> 650
             normalizedSecondary == needle -> 540
             normalizedSecondary.startsWith(needle) -> 500
