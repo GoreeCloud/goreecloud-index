@@ -17,6 +17,7 @@ object GoreeCloudIndexContract {
     const val PROVIDER_APPS = "goreecloud.index.provider.apps"
     const val PROVIDER_CONTACTS = "goreecloud.index.provider.contacts"
     const val PROVIDER_SETTINGS = "goreecloud.index.provider.settings"
+    const val PROVIDER_SEARCH = "goreecloud.index.provider.search"
 }
 
 enum class IndexResultType {
@@ -42,6 +43,7 @@ enum class IndexProviderIssueKind {
     FAILED,
     TIMED_OUT,
     AUTHORIZATION_REQUIRED,
+    INVALID_RESULT,
 }
 
 sealed interface IndexAction {
@@ -56,6 +58,10 @@ sealed interface IndexAction {
 
     data class OpenSystemSetting(
         val action: String,
+    ) : IndexAction
+
+    data class OpenWeb(
+        val uri: String,
     ) : IndexAction
 }
 
@@ -162,8 +168,9 @@ class IndexQueryEngine(
             .awaitAll()
 
         val ranking = compareByDescending<IndexResult> { it.score }
-            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+            .thenBy { IndexQueryNormalizer.normalizeForMatching(it.title) }
             .thenBy { it.providerId }
+            .thenBy { it.id }
 
         val results = outcomes
             .asSequence()
@@ -185,9 +192,25 @@ class IndexQueryEngine(
         query: IndexQuery,
     ): IndexProviderOutcome = try {
         val timeoutMillis = provider.timeoutMillis.coerceIn(1L, MAX_PROVIDER_TIMEOUT_MILLIS)
+        val providerResults = withTimeout(timeoutMillis) {
+            provider.search(query)
+        }
+        val validResults = providerResults.filter { result ->
+            result.providerId == provider.providerId &&
+                result.id.isNotBlank() &&
+                result.title.isNotBlank()
+        }
+
         IndexProviderOutcome(
-            results = withTimeout(timeoutMillis) {
-                provider.search(query)
+            results = validResults,
+            issue = if (validResults.size == providerResults.size) {
+                null
+            } else {
+                IndexProviderIssue(
+                    providerId = provider.providerId,
+                    providerName = provider.displayName,
+                    kind = IndexProviderIssueKind.INVALID_RESULT,
+                )
             },
         )
     } catch (_: TimeoutCancellationException) {

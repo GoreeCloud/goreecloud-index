@@ -25,6 +25,7 @@ import com.goreecloud.index.provider.contacts.ContactsProvider
 import com.goreecloud.index.provider.settings.SystemSettingsProvider
 import com.goreecloud.index.ui.IndexRoot
 import com.goreecloud.index.ui.theme.GoreeCloudIndexTheme
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private lateinit var appsProvider: InstalledAppsProvider
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
             is IndexAction.LaunchActivity -> openApplication(action)
             is IndexAction.ViewContact -> openContact(action)
             is IndexAction.OpenSystemSetting -> openSystemSetting(action)
+            is IndexAction.OpenWeb -> openWeb(action)
             null -> Unit
         }
     }
@@ -140,6 +142,24 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(action.action))
         }.onFailure {
             Toast.makeText(this, "Unable to open this setting.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openWeb(action: IndexAction.OpenWeb) {
+        val uri = Uri.parse(action.uri)
+        val scheme = uri.scheme?.lowercase(Locale.ROOT)
+        val validWebUri = (scheme == "https" || scheme == "http") &&
+            !uri.host.isNullOrBlank() &&
+            uri.userInfo == null
+        if (!validWebUri) {
+            Toast.makeText(this, "Unable to open this web result.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+        }.onFailure {
+            Toast.makeText(this, "Unable to open this web result.", Toast.LENGTH_SHORT).show()
         }
     }
 }
