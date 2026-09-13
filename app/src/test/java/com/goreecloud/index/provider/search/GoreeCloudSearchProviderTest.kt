@@ -88,6 +88,7 @@ class GoreeCloudSearchProviderTest {
         val provider = GoreeCloudSearchProvider { request ->
             observed = request
             GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
                 category = request.category,
                 results = listOf(
@@ -125,10 +126,39 @@ class GoreeCloudSearchProviderTest {
     }
 
     @Test
+    fun incompatibleSearchApiVersionFailsProviderClosed() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val provider = GoreeCloudSearchProvider { request ->
+            GoreeCloudSearchResponse(
+                apiVersion = "2",
+                query = request.query,
+                category = request.category,
+                results = listOf(
+                    GoreeCloudSearchResult(
+                        title = "Should not be accepted",
+                        url = "https://example.com/incompatible",
+                    ),
+                ),
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(provider), dispatcher).search(
+            rawQuery = "goreecloud",
+            executionContext = authorizedRemoteContext(),
+        )
+
+        assertTrue(snapshot.results.isEmpty())
+        assertEquals(1, snapshot.providerIssues.size)
+        assertEquals(IndexProviderIssueKind.FAILED, snapshot.providerIssues.single().kind)
+        assertEquals(GoreeCloudIndexContract.PROVIDER_SEARCH, snapshot.providerIssues.single().providerId)
+    }
+
+    @Test
     fun mismatchedSearchResponseFailsProviderClosed() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val provider = GoreeCloudSearchProvider { request ->
             GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = "different query",
                 category = request.category,
                 results = emptyList(),
@@ -150,6 +180,7 @@ class GoreeCloudSearchProviderTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val provider = GoreeCloudSearchProvider { request ->
             GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
                 category = request.category,
                 results = listOf(
@@ -182,6 +213,7 @@ class GoreeCloudSearchProviderTest {
     fun providerCapsResponseToDelegatedLimit() = runTest {
         val provider = GoreeCloudSearchProvider { request ->
             GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
                 category = request.category,
                 results = listOf(
@@ -202,6 +234,7 @@ class GoreeCloudSearchProviderTest {
     fun unsafeUserInfoURLCannotBecomeExecutableWebAction() = runTest {
         val provider = GoreeCloudSearchProvider { request ->
             GoreeCloudSearchResponse(
+                apiVersion = GOREECLOUD_SEARCH_API_VERSION,
                 query = request.query,
                 category = request.category,
                 results = listOf(
@@ -231,6 +264,7 @@ class GoreeCloudSearchProviderTest {
 
     private fun emptyResponse(request: GoreeCloudSearchRequest): GoreeCloudSearchResponse =
         GoreeCloudSearchResponse(
+            apiVersion = GOREECLOUD_SEARCH_API_VERSION,
             query = request.query,
             category = request.category,
             results = emptyList(),
