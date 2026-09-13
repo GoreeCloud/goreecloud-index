@@ -190,18 +190,10 @@ class IndexQueryEngine(
         val providerResults = withTimeout(timeoutMillis) {
             provider.search(query)
         }
-        val structurallyValidResults = providerResults.filter { result ->
+        val validResults = providerResults.filter { result ->
             result.providerId == provider.providerId &&
                 result.id.isNotBlank() &&
                 result.title.isNotBlank()
-        }
-        val duplicateResultIds = structurallyValidResults
-            .groupingBy { it.id }
-            .eachCount()
-            .filterValues { count -> count > 1 }
-            .keys
-        val validResults = structurallyValidResults.filterNot { result ->
-            result.id in duplicateResultIds
         }
 
         IndexProviderOutcome(
