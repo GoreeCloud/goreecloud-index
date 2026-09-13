@@ -136,6 +136,11 @@ private data class IndexProviderOutcome(
     val issue: IndexProviderIssue? = null,
 )
 
+private data class RankedIndexResult(
+    val result: IndexResult,
+    val normalizedTitle: String,
+)
+
 class IndexQueryEngine(
     private val providers: List<IndexProvider>,
     private val providerDispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -167,15 +172,22 @@ class IndexQueryEngine(
             .toList()
             .awaitAll()
 
-        val ranking = compareByDescending<IndexResult> { it.score }
-            .thenBy { IndexQueryNormalizer.normalizeForMatching(it.title) }
-            .thenBy { it.providerId }
-            .thenBy { it.id }
+        val ranking = compareByDescending<RankedIndexResult> { it.result.score }
+            .thenBy { it.normalizedTitle }
+            .thenBy { it.result.providerId }
+            .thenBy { it.result.id }
 
         val results = outcomes
             .asSequence()
             .flatMap { it.results.asSequence() }
+            .map { result ->
+                RankedIndexResult(
+                    result = result,
+                    normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
+                )
+            }
             .sortedWith(ranking)
+            .map { it.result }
             .distinctBy { result -> "${result.providerId}:${result.id}" }
             .take(query.maxResults)
             .toList()
