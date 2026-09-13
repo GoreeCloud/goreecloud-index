@@ -17,6 +17,7 @@ object GoreeCloudIndexContract {
     const val PROVIDER_APPS = "goreecloud.index.provider.apps"
     const val PROVIDER_CONTACTS = "goreecloud.index.provider.contacts"
     const val PROVIDER_SETTINGS = "goreecloud.index.provider.settings"
+    const val PROVIDER_SEARCH = "goreecloud.index.provider.search"
 }
 
 enum class IndexResultType {
@@ -57,6 +58,10 @@ sealed interface IndexAction {
 
     data class OpenSystemSetting(
         val action: String,
+    ) : IndexAction
+
+    data class OpenWeb(
+        val uri: String,
     ) : IndexAction
 }
 
