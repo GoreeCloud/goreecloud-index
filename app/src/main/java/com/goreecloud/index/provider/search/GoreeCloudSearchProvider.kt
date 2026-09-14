@@ -31,6 +31,11 @@ internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER =
 internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT = "required"
 internal const val GOREECLOUD_SEARCH_PRIVACY_PROCESSING_ZONE = "private_goreecloud"
 internal const val GOREECLOUD_SEARCH_PRIVACY_RETENTION_MODE = "none"
+internal const val GOREECLOUD_SEARCH_PRIVACY_PURPOSE = "internet_search"
+internal const val GOREECLOUD_SEARCH_PRIVACY_RESOURCE_ID = "goreecloud.search.query"
+internal const val GOREECLOUD_SEARCH_PRIVACY_RESOURCE_CLASSIFICATION = "query_text"
+internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_ID = "goreecloud-index"
+internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_TYPE = "application"
 internal const val GOREECLOUD_SEARCH_MAX_REQUEST_BYTES = 16 * 1024
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
 
@@ -88,11 +93,22 @@ data class GoreeCloudSearchCapability(
     val maxRequestBytes: Int = 0,
 )
 
+/**
+ * Canonical Search-specific authorization intent. A concrete Privacy Shield IPC
+ * or service client is responsible for adding its unique request_id and mapping
+ * these fields into the authoritative decision request schema.
+ */
 data class GoreeCloudSearchPrivacyAuthorizationRequest(
+    val requesterId: String = GOREECLOUD_INDEX_PRIVACY_REQUESTER_ID,
+    val requesterType: String = GOREECLOUD_INDEX_PRIVACY_REQUESTER_TYPE,
+    val resourceId: String = GOREECLOUD_SEARCH_PRIVACY_RESOURCE_ID,
+    val resourceClassification: String = GOREECLOUD_SEARCH_PRIVACY_RESOURCE_CLASSIFICATION,
     val operation: String = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
+    val purpose: String = GOREECLOUD_SEARCH_PRIVACY_PURPOSE,
     val processingZone: String = GOREECLOUD_SEARCH_PRIVACY_PROCESSING_ZONE,
     val destination: String = GOREECLOUD_SEARCH_ORIGIN,
     val retentionMode: String = GOREECLOUD_SEARCH_PRIVACY_RETENTION_MODE,
+    val externalDisclosure: Boolean = false,
 )
 
 data class GoreeCloudSearchPrivacyAuthorization(
