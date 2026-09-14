@@ -108,22 +108,29 @@
 - [ ] Authenticated requester/service identity for protected remote-provider transport.
 - [ ] User/profile/caller isolation acceptance.
 
-## Wardveil Security, Everkeep, Mesh, and Sync
+## Wardveil Security, Everkeep, and Mesh
 
 - [x] No Wardveil trust/protection claim inferred from provider success.
 - [x] Current query state remains transient.
-- [x] Platform Contract `0.3` branch manifest declares all eight Integral Platform Systems, including GoreeCloud Sync, without converting blocked systems into conformance.
-- [x] Transient query text and search history are not designated as Sync datasets.
 - [ ] Wardveil provider/action security evidence integration.
 - [ ] Everkeep continuity for applicable durable settings/configuration.
 - [ ] Mesh provider discovery/coordination integration.
-- [ ] GoreeCloud Sync dataset contracts and runtime registration/reconciliation for any future approved durable Index state.
+
+## GoreeCloud Sync
+
+GoreeCloud Sync is a separate application/service capability, not one of the seven Integral Platform Systems.
+
+- [x] Transient query text and search history are not designated as Sync datasets.
+- [x] The Platform Contract manifest does not misclassify Sync as a `platform_systems` member.
+- [ ] Define explicit GoreeCloud Sync dataset contracts only for future approved durable Index state where synchronization is genuinely applicable.
+- [ ] Complete runtime registration, authorization, reconciliation, conflict/deletion behavior, privacy review, and cross-device acceptance before claiming synchronized Index state.
 
 ## Platform Contract 0.3
 
-- [x] Branch manifest declares Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, and GoreeCloud Sync.
+- [x] Branch manifest declares the seven authoritative Integral Platform Systems: Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, and GoreeCloud Identity.
 - [x] Compatibility requires `goreecloud-platform-contract==0.3` and `glaze-ui==1.4.0`.
-- [x] Development validation is pinned to exact GoreeCloud/GoreeCloud PR #30 head `5e10d17f10a4c12cc0a98b595646e4fc5992c1f2` while that central PR remains draft/unmerged.
+- [x] Development validation is pinned to corrected GoreeCloud/GoreeCloud PR #30 candidate `96701cc5f20c8e0deaad512d2a9f83e0411f3f18` while that central PR remains draft/unmerged.
+- [x] Sync-specific future obligations remain tracked separately without converting Sync into an Integral Platform System.
 - [ ] Replace the temporary draft-candidate pin with an accepted central Platform Contract revision after normal governance completes.
 - [ ] Achieve passing application-specific results for every applicable Integral Platform System before Stable qualification.
 
