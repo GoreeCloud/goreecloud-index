@@ -39,7 +39,6 @@ internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_ID = "goreecloud-index"
 internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_TYPE = "application"
 internal const val GOREECLOUD_SEARCH_MAX_REQUEST_BYTES = 16 * 1024
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
-private const val GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX = "psc_"
 
 /**
  * The only data Index needs to send to GoreeCloud Search for the initial
@@ -190,15 +189,21 @@ class GoreeCloudSearchProvider(
             "GoreeCloud Search response category does not match the delegated category"
         }
 
+        val acceptedResults = mutableListOf<IndexResult>()
+        var rejectedUnsafeResult = false
+        for ((sourceOrdinal, result) in response.results.withIndex()) {
+            if (acceptedResults.size >= limit) break
+            val indexResult = result.toIndexResult(normalizedQuery, sourceOrdinal)
+            if (indexResult == null) {
+                rejectedUnsafeResult = true
+                continue
+            }
+            acceptedResults += indexResult
+        }
+
         return IndexProviderResponse(
-            results = response.results
-                .asSequence()
-                .take(limit)
-                .mapIndexed { sourceOrdinal, result ->
-                    result.toIndexResult(normalizedQuery, sourceOrdinal)
-                }
-                .toList(),
-            degraded = response.degraded,
+            results = acceptedResults,
+            degraded = response.degraded || rejectedUnsafeResult,
         )
     }
 
@@ -213,11 +218,7 @@ class GoreeCloudSearchProvider(
         }
         val authorization = authorizer.authorize(authorizationRequest)
         val reference = authorization.capabilityTokenReference.trim()
-        check(
-            reference.startsWith(GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX) &&
-                reference.length > GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX.length &&
-                reference.none(Char::isWhitespace)
-        ) {
+        check(isCanonicalPrivacyShieldCapabilityReference(reference)) {
             "GoreeCloud Search production delegation requires a canonical Privacy Shield capability reference"
         }
         return reference
@@ -278,8 +279,8 @@ class GoreeCloudSearchProvider(
     private fun GoreeCloudSearchResult.toIndexResult(
         query: String,
         sourceOrdinal: Int,
-    ): IndexResult {
-        val normalizedURL = normalizeWebURL(url)
+    ): IndexResult? {
+        val normalizedURL = normalizeWebURL(url) ?: return null
         val normalizedTitle = title.trim()
         val normalizedSnippet = snippet?.trim()?.takeIf(String::isNotEmpty)
         val localScore = IndexTextMatcher.score(
@@ -289,13 +290,13 @@ class GoreeCloudSearchProvider(
         ) ?: 0
 
         return IndexResult(
-            id = normalizedURL.orEmpty(),
+            id = normalizedURL,
             providerId = providerId,
             type = IndexResultType.WEB,
             title = normalizedTitle,
             subtitle = normalizedSnippet,
             score = localScore,
-            action = normalizedURL?.let(IndexAction::OpenWeb),
+            action = IndexAction.OpenWeb(normalizedURL),
             sourceOrdinal = sourceOrdinal,
         )
     }
