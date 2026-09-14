@@ -69,13 +69,6 @@ platform_systems:
       - README.md
       - CONFORMANCE.md
     notes: Index source distinguishes Identity authorization from authentication and Android permission, but accepted producer-authoritative Identity authorization/runtime integration, requester/service identity, direct-service authentication, and user/profile isolation evidence are incomplete.
-  sync:
-    result: applicable-blocked
-    version: null
-    evidence:
-      - README.md
-      - CONFORMANCE.md
-    notes: Index does not intentionally synchronize transient query text or search history. Any future authorized synchronization of durable Index preferences, provider configuration, or other portable application state must use GoreeCloud Sync with explicit dataset contracts; accepted Sync runtime registration, reconciliation, deletion/conflict behavior, and cross-device evidence are not yet implemented.
 
 health:
   health_endpoint: null
@@ -127,7 +120,7 @@ conformance:
     - Current Stable GLAZE UI V1.4 / 1.4.0 is the required Index baseline and Development source targets it, but Index-specific rendered/native, accessibility, localization/RTL, representative-device/form-factor, performance, and production acceptance evidence remain incomplete.
     - GoreeCloud Mesh provider discovery/coordination integration and runtime acceptance are incomplete.
     - GoreeCloud Identity authorization adapter, user/profile isolation, revocation, requester/service identity, direct-service authentication, and runtime acceptance are incomplete.
-    - GoreeCloud Sync dataset contracts and accepted runtime synchronization/reconciliation evidence for any applicable durable Index state are incomplete; transient query text/history must not be synchronized by default.
+    - GoreeCloud Sync remains a separate application/service capability; dataset contracts and accepted runtime synchronization/reconciliation evidence for any applicable durable Index state are incomplete, and transient query text/history must not be synchronized by default.
     - Index exposes no accepted health/readiness interfaces for GoreeCloud Manager or platform observability.
     - Representative Android device acceptance, accessibility, localization/RTL, form-factor/performance, production signing/distribution, recovery decisions, and release provenance are incomplete.
     - No Stable or production-approved GoreeCloud Index release evidence is declared.
