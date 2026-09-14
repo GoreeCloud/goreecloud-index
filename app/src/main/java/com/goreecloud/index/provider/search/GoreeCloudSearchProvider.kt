@@ -30,6 +30,9 @@ internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME =
 internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER =
     "X-GoreeCloud-Privacy-Capability"
 internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT = "required"
+internal const val GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_AUTHORITY = "goreecloud-identity"
+internal const val GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_SCHEME = "bearer"
+internal const val GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_HEADER = "Authorization"
 internal const val GOREECLOUD_SEARCH_PRIVACY_PROCESSING_ZONE = "private_goreecloud"
 internal const val GOREECLOUD_SEARCH_PRIVACY_RETENTION_MODE = "none"
 internal const val GOREECLOUD_SEARCH_PRIVACY_PURPOSE = "internet_search"
@@ -122,6 +125,9 @@ data class GoreeCloudSearchCapability(
     val privacyAuthorizationEnforcement: String? = null,
     val authenticatedRequesterRequired: Boolean = false,
     val maxRequestBytes: Int = 0,
+    val authenticatedRequesterAuthority: String? = null,
+    val authenticatedRequesterScheme: String? = null,
+    val authenticatedRequesterHeader: String? = null,
 )
 
 /**
@@ -289,7 +295,10 @@ class GoreeCloudSearchProvider(
                     capability.privacyAuthorizationScheme == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME &&
                     capability.privacyAuthorizationHeader == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER &&
                     capability.privacyAuthorizationEnforcement == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT &&
-                    capability.authenticatedRequesterRequired
+                    capability.authenticatedRequesterRequired &&
+                    capability.authenticatedRequesterAuthority == GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_AUTHORITY &&
+                    capability.authenticatedRequesterScheme == GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_SCHEME &&
+                    capability.authenticatedRequesterHeader == GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_HEADER
             ) {
                 "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization and authenticated requester transport"
             }
