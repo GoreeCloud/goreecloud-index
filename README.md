@@ -1,6 +1,6 @@
 # GoreeCloud Index
 
-GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing layer. It coordinates authorized search providers while preserving source ownership, provenance, and platform authority boundaries.
+GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing layer. It coordinates authorized search providers while preserving source ownership, provenance, privacy boundaries, and platform authority.
 
 ## Status
 
@@ -8,20 +8,48 @@ GoreeCloud Index is GoreeCloud's privacy-first universal search and indexing lay
 
 The current accepted source/build baseline is authoritative `main` commit `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Exact-main workflow run `33431294298` passed repository validation, coroutine unit tests, Android lint, Development APK assembly, package/version/label verification, checksum capture, and artifact publication.
 
-Current `0.3.0-dev` development source contains the Contacts/authority work and this branch adds a bounded **Settings · On-device** provider candidate. Branch source is not accepted runtime, release, production, or Stable evidence until exact-head validation and normal merge governance complete.
+Current `0.3.0-dev` development work expands provider coverage and authority handling. Branch source is not accepted runtime, release, production, or Stable evidence until exact-head validation and normal merge governance complete.
 
 ## Accepted Development Capability
 
 Accepted `main` can:
 
-- Browse and search launcher-visible applications on the current device.
-- Dispatch eligible providers concurrently with Kotlin structured concurrency.
-- Cancel superseded query work through the Compose query lifecycle.
-- Apply bounded provider timeouts and distinguish `FAILED` from `TIMED_OUT` issues.
-- Preserve healthy-provider results when another eligible provider fails or times out.
-- Rank before provider-scoped deduplication.
-- Fail closed through exact provider allowlisting and `localOnly` processing gating.
-- Expose the Launcher→Index `com.goreecloud.index.action.SEARCH` handoff.
+- browse and search launcher-visible applications on the current device;
+- dispatch eligible providers concurrently with Kotlin structured concurrency;
+- cancel superseded query work through the Compose query lifecycle;
+- apply bounded provider timeouts and distinguish `FAILED` from `TIMED_OUT` issues;
+- preserve healthy-provider results when another eligible provider fails or times out;
+- rank before provider-scoped deduplication;
+- fail closed through exact provider allowlisting and local/remote processing gates;
+- expose the Launcher→Index `com.goreecloud.index.action.SEARCH` handoff.
+
+## Product Boundary
+
+- **GoreeCloud Index** is the universal search/indexing authority.
+- **GoreeCloud Search** remains authoritative for Internet/web/current-information search.
+- **GoreeCloud Browser** remains authoritative for URL navigation, tabs, page lifecycle, and executable web-result navigation.
+- **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index.
+- Provider applications, Android platform services, and GoreeCloud services remain authoritative for their own records and operations.
+
+Index must not collapse these roles into a single global search authority.
+
+## GoreeCloud Search Provider
+
+The source tree contains a dedicated GoreeCloud Search provider adapter for remote Internet results.
+
+The initial interoperable contract uses:
+
+- capability ID `search.query`;
+- contract version `1`;
+- endpoint `/api/v1/search`;
+- a minimized request containing only normalized query, category, and bounded result limit;
+- independent Index-side validation of executable HTTP(S) destinations.
+
+Local-only execution must not preflight or call GoreeCloud Search. Remote execution requires explicit provider eligibility and applicable Privacy Shield evidence.
+
+Development builds may use explicitly non-production Search capability evidence only as Development evidence. A Stable/production Index path must require Search capability evidence that is explicitly production accepted.
+
+See [`docs/SEARCH_INTEGRATION.md`](docs/SEARCH_INTEGRATION.md).
 
 ## Contacts Authority Development Slice
 
@@ -33,44 +61,59 @@ Current source includes a permission-aware Contacts provider without treating so
 - Results preserve an on-device source label and a typed contact-view action.
 - Contact actions are validated as `content://com.android.contacts/contacts/...` before handoff.
 - The provider declares `LOCAL` processing and a provisional 750 ms Development timeout.
-- Dispatch requires Android `READ_CONTACTS` permission **and** unconstrained Privacy Shield decision evidence **and** GoreeCloud Identity authorization evidence.
-- Missing, denied, user-decision-required, unavailable, or `ALLOW_WITH_CONSTRAINTS` evidence fails closed and produces `AUTHORIZATION_REQUIRED`; the query is not sent to Contacts.
-- The application does not fabricate Privacy Shield or Identity approval. Current MainActivity supplies those platform decisions as unavailable, so Contacts remains authority-gated until real adapters are implemented and accepted.
+- Dispatch requires Android `READ_CONTACTS` permission plus accepted Privacy Shield decision evidence and GoreeCloud Identity authorization evidence.
+- Missing, denied, user-decision-required, unavailable, or unenforceable constrained evidence fails closed and produces `AUTHORIZATION_REQUIRED`; the query is not sent to Contacts.
+- The application must not fabricate Privacy Shield or Identity approval.
 
 `IndexExecutionContext` remains an application execution gate. The authority-evidence model consumes platform decisions; it does not make Index the Privacy Shield or Identity authority.
 
 ## Settings Navigation Development Slice
 
-This branch adds a local provider for a bounded static catalog of Android Settings destinations.
+Development source includes a local provider for a bounded static catalog of Android Settings destinations.
 
-- Ten reviewed destinations cover Settings, Wi-Fi, Bluetooth, Display, Sound, Accessibility, Location, Security, Apps, and Battery Saver.
-- The provider is local-only, has a provisional 250 ms timeout, and never runs for a blank query.
-- It searches only repository-defined labels and keywords; it does **not** read Android setting values, device configuration values, permission state, accounts, history, or other user data.
-- It adds no Android permission, network capability, local cache, analytics, or persistent query history.
+- Reviewed destinations cover common Settings areas such as Wi-Fi, Bluetooth, Display, Sound, Accessibility, Location, Security, Apps, and Battery Saver.
+- The provider is local-only and never runs for a blank query.
+- It searches only repository-defined labels and keywords; it does not read Android setting values, device configuration values, permission state, accounts, history, or other user data.
+- It adds no analytics or persistent query history.
 - Results use a typed `OpenSystemSetting` action.
-- MainActivity revalidates the requested action against the exact static allowlist before Android handoff; arbitrary actions, URLs, data URIs, and extras are not supported.
 - Android Settings remains authoritative for every setting and any authentication, permission, confirmation, or modification performed there.
 
-Platform review for this bounded slice: Privacy Shield gains no new data resource because the provider searches static GoreeCloud-owned navigation metadata rather than reading setting state; Wardveil concerns are constrained through the closed action allowlist; Everkeep has no new durable state to recover; Mesh and GoreeCloud Identity are not invoked for this local OS-navigation handoff; Manager gains no administrative authority; and Glaze presentation continues through the existing Index result UI without claiming new Glaze acceptance.
+Any future Settings value/state indexing requires a separate authority and privacy review.
 
-## Product Boundary
+## Privacy and Authority Model
 
-**GoreeCloud Index** is the universal search/indexing authority. **GoreeCloud Search** remains authoritative for Internet/web/current-information search. **GoreeCloud Launcher** is an invocation/presentation surface, not a competing universal index. Provider applications, Android Settings, and services remain authoritative for their own resources and operations.
+Index consumes authority; it does not manufacture it.
 
-## Platform Requirements
+- Privacy Shield controls applicable purpose, minimization, destination, retention, and local/remote processing decisions.
+- GoreeCloud Identity controls applicable identity and authorization evidence.
+- Wardveil Security controls applicable trust/security evidence.
+- Everkeep controls continuity requirements for durable Index state.
+- GoreeCloud Mesh may coordinate first-party provider discovery without taking source authority.
 
-GLAZE UI V1.1 / `1.1.0` is the current published Stable consumer target. Index's separate V1.1 migration remains Development work, and the immutable `1.1.0` CSS graph has a known import-closure defect. A corrected immutable Stable release must be published and explicitly re-pinned/revalidated before current Glaze conformance can be claimed. Runtime acceptance also remains pending for applicable **Privacy Shield, Wardveil Security, Everkeep, GoreeCloud Mesh, GoreeCloud Identity, and GoreeCloud Manager** contracts.
+A provider can run only when its declared requirements are satisfied by enforceable evidence available to the current Index execution context.
+
+## Glaze UI Requirement
+
+The current official Stable consumer target published by `GoreeCloud/goreecloud-glaze-ui` is **Glaze UI V1.4 / `1.4.0`**.
+
+The previous Index documentation contained inconsistent historical targets (`1.1.0` and `2.1.0`). Those values are not current release authority and must not be used as present conformance evidence.
+
+Index is therefore **migration-required** until Index-owned surfaces have been mapped to V1.4 and repository-local source, rendered/native, accessibility, and representative-device evidence has been accepted.
+
+Glaze Stable status does not auto-promote Index. A superseded design baseline cannot satisfy Index Stable readiness.
 
 ## Android Development Identity
 
 - Production application ID: `com.goreecloud.index`
 - Development application ID: `com.goreecloud.index.dev`
 - Label: `GoreeCloud Index Dev`
-- Branch version: `0.3.0-dev`, version code `3`
+- Branch version family: `0.3.0-dev`
 - Accepted-main version: `0.2.0-dev`, version code `2`
 - Minimum API: 26
 - Compile API: 37
 - Target API: 36
+
+Version and package evidence must be read from the exact revision being validated; branch documentation does not itself authorize a release.
 
 ## Accepted Main Evidence
 
@@ -84,7 +127,20 @@ This is Development source/build evidence only.
 
 ## Planned Search Sources
 
-Files/folders, calendar, media, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search remain separately gated work. Settings **value/state indexing** is not implemented by the static navigation provider and would require a separate authority/privacy review.
+Planned provider families include files/folders, calendar, media, first-party GoreeCloud content, connected devices, extensions, optional third-party services, and Internet results through GoreeCloud Search.
+
+Every new provider must define:
+
+- stable provider identity;
+- source authority;
+- processing location;
+- permissions and authority requirements;
+- blank-query behavior;
+- bounded timeout/cancellation behavior;
+- result/action validation;
+- privacy minimization and retention behavior;
+- availability and degradation semantics;
+- recovery requirements for any durable state.
 
 ## Documentation
 
@@ -92,6 +148,7 @@ Files/folders, calendar, media, first-party GoreeCloud content, connected device
 - [Features](FEATURES.md)
 - [Capabilities](CAPABILITIES.md)
 - [Architecture](ARCHITECTURE.md)
+- [Search integration](docs/SEARCH_INTEGRATION.md)
 - [Conformance](CONFORMANCE.md)
 - [User manual](USER-MANUAL.md)
 - [Benefits](BENEFITS.md)
