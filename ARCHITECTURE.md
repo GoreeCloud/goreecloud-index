@@ -41,6 +41,7 @@ Launcher, Browser, or user
       → per-provider timeout
       → preserve cancellation
       → normalize provider outcomes
+      → normalize cross-provider textual relevance
   → IndexSearchSnapshot
       → ranked provider-scoped results
       → AUTHORIZATION_REQUIRED / FAILED / TIMED_OUT / DEGRADED / INVALID_RESULT issues
@@ -122,20 +123,19 @@ Invalid executable actions fail closed with sanitized user-visible/provider issu
 
 ## Ranking and Deduplication
 
-Index is responsible for cross-provider composition. Provider-local scores may be useful within a source but must not be assumed to share one universal numeric scale.
+Index is responsible for cross-provider composition. Provider-local scores are authoritative only inside the provider that produced them; raw score magnitudes are not compared across provider boundaries.
 
-Cross-provider ranking should therefore evolve toward explicit normalization that can account for:
+The current Development engine implements a first explicit normalization layer:
 
-- exact/prefix/token match quality;
-- result type;
-- source confidence;
-- local versus remote intent;
-- recency where the source owns meaningful recency;
-- user-declared source preference;
-- degraded/provider-health state;
-- privacy cost and remote-processing intent where appropriate.
+- cross-provider ordering uses Index-owned normalized textual relevance derived from title and subtitle match quality;
+- exact, prefix, token-prefix, contained-title, and secondary-text matches use one Index-owned scale;
+- a provider with an arbitrarily large private score cannot outrank a stronger textual match from another provider merely because its numeric scale is larger;
+- provider-local scores remain available for ordering results from the same provider;
+- provider `sourceOrdinal` remains a same-provider tie-breaker when provider-local scores tie;
+- equal cross-provider normalized relevance falls back to deterministic stable title/provider/id ordering rather than raw provider score;
+- provider-scoped deduplication remains after ranking, so the strongest same-provider duplicate survives without collapsing distinct resources owned by different providers.
 
-Provider-scoped deduplication must not erase distinct resources merely because titles are equal.
+This is the baseline normalization layer, not the final blending model. Future ranking work can add explicit, bounded factors such as result type, source confidence, local-versus-remote intent, source-owned recency, user-declared source preference, degraded/provider-health state, and privacy/remote-processing cost. Those factors must be Index-owned and explainable rather than inferred from incomparable provider score scales.
 
 ## Cancellation and Performance
 
@@ -192,7 +192,7 @@ This is Development evidence only.
 1. complete accepted Privacy Shield and Identity adapter paths with explicit user-decision handling;
 2. validate Contacts on representative devices;
 3. harden the Search provider capability lifecycle and production-acceptance gate;
-4. add explicit cross-provider score normalization and intent-aware blending;
+4. extend the implemented textual cross-provider normalization with intent-aware, result-type, source-health, confidence, and privacy-cost blending;
 5. add incremental result delivery while preserving deterministic cancellation and source status;
 6. expand files/calendar/media providers only after authority and privacy boundaries are proven;
 7. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
