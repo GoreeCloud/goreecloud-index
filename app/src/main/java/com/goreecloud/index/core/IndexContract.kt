@@ -348,7 +348,11 @@ class IndexQueryEngine(
                 processingLocation = processingLocation,
             )
         }
-        .sortedWith(Comparator(::compareSameProviderResults))
+        .sortedWith(
+            Comparator { left, right ->
+                compareSameProviderResults(left, right)
+            },
+        )
         .map { it.result }
         .distinctBy(IndexResult::id)
         .take(query.maxResults)
