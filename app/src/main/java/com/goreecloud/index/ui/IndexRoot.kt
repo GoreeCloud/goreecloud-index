@@ -244,7 +244,7 @@ private fun ProviderIssueCard(issue: IndexProviderIssue) {
         IndexProviderIssueKind.DEGRADED ->
             "Some upstream sources were unavailable, so Index kept the valid results that GoreeCloud Search could still return."
         IndexProviderIssueKind.INVALID_RESULT ->
-            "Index rejected results that failed provider provenance or required identity and title checks, while preserving valid results from healthy sources."
+            "Index rejected or bounded results that violated provider provenance, required identity/title fields, source ordering, or the requested result limit, while preserving valid bounded results."
     }
     val containerColor = if (informational) {
         MaterialTheme.colorScheme.surfaceContainerHigh
