@@ -4,9 +4,11 @@
 
 **Release lifecycle: Development.** Accepted `main` remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current branch work is Development source pending normal merge acceptance. Production acceptance and Stable qualification remain false.
 
-The latest verified implementation checkpoint is `774e727d5ec4e1c74c9ec85e3d023c9b508bd18c`. Platform Contract #61 and Android Index foundation validation #188 passed on that exact revision, including repository/provider/branding validation, the full unit-test suite, lint, Development APK assembly, APK identity verification, and evidence upload.
+The latest verified implementation checkpoint is `21430f9a6ebc1451b46d2f1115dee067c4dd98a8`. Platform Contract #73 and Android Index foundation validation #200 passed on that exact revision. Android #200 passed repository/provider/branding validation, the full unit-test suite, lint, Development APK assembly, APK/package identity verification, and evidence upload.
 
-The immediately preceding privacy-safe authority-explanation checkpoint `703dcf554981b4c00c10365b07de21ee937904d0` passed Platform Contract #56 and Android Index foundation validation #183. The current checkpoint extends that presentation-only explanation with an explicit, user-initiated Android-owned Contacts permission review action without creating Privacy Shield or GoreeCloud Identity approval flows.
+This checkpoint aligns federation-level GoreeCloud Search authority gating with the already-strict production handoff contract. Development mode preserves its existing Privacy Shield provider requirement and current local Development behavior. Production Search declares both Privacy Shield and GoreeCloud Identity as provider authority requirements, so Privacy Shield evidence without Identity authority fails closed as `AUTHORIZATION_REQUIRED` before Search capability preflight or Search client dispatch.
+
+The intermediate head `9f0c2a7ced18891b937e037a8d5b923a7ce5e371` passed Platform Contract #71 but Android #198 exposed three stale production fixtures. Those fixtures were corrected to provide the already-required Identity requester-authentication client/credential and exact requester-authentication capability metadata. No default credential, bypass, or weaker production authority behavior was introduced.
 
 ## Authority Model
 
@@ -173,19 +175,24 @@ The Search provider is the remote Internet/current-information provider.
 
 - provider identity remains distinct from local providers;
 - remote processing must be explicitly allowed;
-- Privacy Shield evidence is required before delegation;
-- local-only mode must not perform capability preflight or search;
+- Development mode preserves the existing Privacy Shield provider-authority requirement for Development compatibility;
+- Production mode requires both Privacy Shield **and GoreeCloud Identity** provider authority before Search capability preflight or Search client dispatch;
+- Privacy Shield evidence without accepted Identity authority fails closed as `AUTHORIZATION_REQUIRED` before Search capability discovery/preflight;
+- production handoff separately requires a fresh operation-scoped Privacy Shield capability reference and an externally supplied GoreeCloud Identity requester credential;
+- Index does not mint, default, infer, persist, or self-register Identity requester credentials;
+- local-only mode must not perform capability preflight, requester authentication, or search;
 - the initial Search contract uses capability `search.query`, contract version `1`, endpoint `/api/v1/search`;
-- the delegated request is minimized to query, category, and result limit;
+- production capability acceptance requires the bounded POST + JSON-body contract, Privacy Shield authorization enforcement `required`, and exact GoreeCloud Identity requester-authentication authority/scheme/header metadata;
+- the delegated request is minimized to query, category, result limit, operation-scoped Privacy Shield reference, and opaque Identity requester credential;
 - Search response consumption is independently capped to the authorized/requested limit;
 - returned destinations are revalidated by Index before becoming executable web actions;
 - degraded Search responses may preserve valid results while retaining degraded status.
 
-Development builds may consume explicitly Development-only Search capability evidence only as Development evidence. Stable/production Index builds must require explicitly production-accepted Search capability evidence.
+Development builds may consume explicitly Development-only Search capability evidence only as Development evidence. Stable/production Index builds must require explicitly production-accepted Search capability evidence and independently accepted Privacy Shield plus GoreeCloud Identity authority.
 
-The incremental engine is transport-neutral: it can incorporate a future authorized remote Search provider when that provider becomes eligible, but it does **not** itself enable remote Search, acquire Privacy Shield authority, or authenticate a requester.
+The incremental engine is transport-neutral: it can incorporate a future authorized remote Search provider when that provider becomes eligible, but it does **not** itself enable remote Search, acquire Privacy Shield authority, register/authenticate an Identity requester, or manufacture any credential.
 
-The current session source-control UI cannot enable GoreeCloud Search. This is intentional fail-closed behavior while accepted requester/service authentication, real Privacy Shield decision acquisition, Search-side capability verification, and remote-processing product acceptance remain incomplete.
+The current session source-control UI cannot enable GoreeCloud Search. This is intentional fail-closed behavior while a governed producer-owned GoreeCloud Identity requester registration/runtime issuance path, real Privacy Shield decision acquisition, Search-side accepted capability-reference consumption/requester verification, representative-runtime evidence, and remote-processing product acceptance remain incomplete.
 
 See [`docs/SEARCH_INTEGRATION.md`](docs/SEARCH_INTEGRATION.md).
 
@@ -268,6 +275,7 @@ Index is migration-required until Index-owned surfaces and native mappings have 
 ## Failure and Recovery Model
 
 - Missing authority → provider not dispatched; sanitized `AUTHORIZATION_REQUIRED` can appear in the initial snapshot.
+- Production Search missing GoreeCloud Identity authority → Search capability preflight and Search client dispatch do not occur.
 - Missing Android Contacts permission → coarse prerequisite state may expose the Android-owned review action, but no automatic permission prompt occurs.
 - Android permission denied → Contacts remains blocked; Index refreshes state and does not reinterpret denial as Privacy Shield or Identity state.
 - Android permission granted while Privacy Shield or Identity remains unavailable → Contacts remains blocked on those independent requirements.
@@ -302,7 +310,7 @@ This is Development evidence only.
 2. define profile/device scoping plus Everkeep continuity semantics before persisting provider preferences;
 3. complete accepted Privacy Shield and GoreeCloud Identity adapter paths with producer-authoritative user-decision/authorization handling;
 4. validate Contacts end to end on representative devices only after all three independent prerequisites can be satisfied with accepted evidence;
-5. harden the Search provider capability lifecycle and production-acceptance gate before making an Internet provider user-selectable;
+5. obtain a governed producer-owned GoreeCloud Identity requester registration/runtime issuance path for Index → Search, then connect real Privacy Shield decision acquisition and Identity requester acquisition without manufacturing authority locally; enable bounded remote Search only after Search proves accepted server-side Privacy Shield reference consumption plus authenticated requester verification;
 6. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
 7. measure incremental rendering/provider completion, source-toggle behavior, and authority-refresh behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
 8. expand files/calendar/media providers only after authority and privacy boundaries are proven;
