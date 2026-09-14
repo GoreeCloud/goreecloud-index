@@ -35,6 +35,22 @@ object IndexSourceAuthorityProjection {
 }
 
 /**
+ * Determines whether Index may offer the user an Android-owned Contacts
+ * permission request action.
+ *
+ * This does not decide the permission and does not make Privacy Shield or
+ * GoreeCloud Identity actionable through Index. It only allows an explicit
+ * user gesture to hand the Android runtime permission decision to Android when
+ * that specific prerequisite is currently missing.
+ */
+object IndexPermissionReviewPolicy {
+    fun canRequestAndroidContactsPermission(status: IndexSourceAuthorityStatus?): Boolean =
+        status?.missingRequirements?.contains(
+            IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+        ) == true
+}
+
+/**
  * Development-only user source selection policy.
  *
  * This policy intentionally exposes only the currently integrated local
