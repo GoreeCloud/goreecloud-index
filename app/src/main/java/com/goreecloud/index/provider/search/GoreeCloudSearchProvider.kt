@@ -39,6 +39,7 @@ internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_ID = "goreecloud-index"
 internal const val GOREECLOUD_INDEX_PRIVACY_REQUESTER_TYPE = "application"
 internal const val GOREECLOUD_SEARCH_MAX_REQUEST_BYTES = 16 * 1024
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
+private const val GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX = "psc_"
 
 /**
  * The only data Index needs to send to GoreeCloud Search for the initial
@@ -211,10 +212,15 @@ class GoreeCloudSearchProvider(
             "GoreeCloud Search production delegation requires a Privacy Shield request identifier"
         }
         val authorization = authorizer.authorize(authorizationRequest)
-        return authorization.capabilityTokenReference
-            .trim()
-            .takeIf(String::isNotEmpty)
-            ?: error("GoreeCloud Search production delegation requires a Privacy Shield capability-token reference")
+        val reference = authorization.capabilityTokenReference.trim()
+        check(
+            reference.startsWith(GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX) &&
+                reference.length > GOREECLOUD_PRIVACY_CAPABILITY_REFERENCE_PREFIX.length &&
+                reference.none(Char::isWhitespace)
+        ) {
+            "GoreeCloud Search production delegation requires a canonical Privacy Shield capability reference"
+        }
+        return reference
     }
 
     private fun validateCapability(capability: GoreeCloudSearchCapability) {
