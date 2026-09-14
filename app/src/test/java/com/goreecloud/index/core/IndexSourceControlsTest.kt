@@ -112,4 +112,30 @@ class IndexSourceControlsTest {
         assertTrue(status.available)
         assertTrue(status.missingRequirements.isEmpty())
     }
+
+    @Test
+    fun permissionReviewPolicyOffersAndroidRequestOnlyWhenAndroidPermissionIsMissing() {
+        val status = IndexSourceAuthorityStatus(
+            missingRequirements = linkedSetOf(
+                IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+                IndexAuthorityRequirement.PRIVACY_SHIELD,
+                IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+            ),
+        )
+
+        assertTrue(IndexPermissionReviewPolicy.canRequestAndroidContactsPermission(status))
+    }
+
+    @Test
+    fun permissionReviewPolicyDoesNotTreatPrivacyOrIdentityAsAndroidPermissionActions() {
+        val status = IndexSourceAuthorityStatus(
+            missingRequirements = linkedSetOf(
+                IndexAuthorityRequirement.PRIVACY_SHIELD,
+                IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+            ),
+        )
+
+        assertFalse(IndexPermissionReviewPolicy.canRequestAndroidContactsPermission(status))
+        assertFalse(IndexPermissionReviewPolicy.canRequestAndroidContactsPermission(null))
+    }
 }
