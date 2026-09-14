@@ -45,11 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.goreecloud.index.core.GoreeCloudIndexContract
+import com.goreecloud.index.core.IndexAuthorityRequirement
 import com.goreecloud.index.core.IndexProviderIssue
 import com.goreecloud.index.core.IndexProviderIssueKind
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
 import com.goreecloud.index.core.IndexSearchSnapshot
+import com.goreecloud.index.core.IndexSourceAuthorityStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 
@@ -57,6 +59,8 @@ import kotlinx.coroutines.flow.collect
 fun IndexRoot(
     initialQuery: String,
     initiallyEnabledProviderIds: Set<String>,
+    authorityRevision: Int,
+    sourceAuthorityStatuses: Map<String, IndexSourceAuthorityStatus>,
     onSearch: (String, Set<String>) -> Flow<IndexSearchSnapshot>,
     onOpenResult: (IndexResult) -> Unit,
 ) {
@@ -69,7 +73,7 @@ fun IndexRoot(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    LaunchedEffect(query, enabledProviderIds) {
+    LaunchedEffect(query, enabledProviderIds, authorityRevision) {
         searching = true
         try {
             onSearch(query, enabledProviderIds).collect { update ->
@@ -127,6 +131,7 @@ fun IndexRoot(
 
             SourceStatusCard(
                 enabledProviderIds = enabledProviderIds,
+                sourceAuthorityStatuses = sourceAuthorityStatuses,
                 onToggleProvider = { providerId, enabled ->
                     enabledProviderIds = if (enabled) {
                         enabledProviderIds + providerId
@@ -206,8 +211,12 @@ fun IndexRoot(
 @Composable
 private fun SourceStatusCard(
     enabledProviderIds: Set<String>,
+    sourceAuthorityStatuses: Map<String, IndexSourceAuthorityStatus>,
     onToggleProvider: (String, Boolean) -> Unit,
 ) {
+    val contactsStatus = sourceAuthorityStatuses[GoreeCloudIndexContract.PROVIDER_CONTACTS]
+    val contactsEnabled = GoreeCloudIndexContract.PROVIDER_CONTACTS in enabledProviderIds
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -247,12 +256,21 @@ private fun SourceStatusCard(
             )
             SourceToggleRow(
                 title = "Contacts",
-                detail = "On-device · permission and authority gated",
-                checked = GoreeCloudIndexContract.PROVIDER_CONTACTS in enabledProviderIds,
+                detail = contactsSourceDetail(contactsStatus),
+                checked = contactsEnabled,
                 onCheckedChange = { enabled ->
                     onToggleProvider(GoreeCloudIndexContract.PROVIDER_CONTACTS, enabled)
                 },
             )
+
+            if (contactsEnabled && contactsStatus != null && !contactsStatus.available) {
+                Text(
+                    text = "Why Contacts is unavailable: ${missingAuthoritySummary(contactsStatus)}. Index reports these prerequisites but does not approve or bypass them here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -287,6 +305,23 @@ private fun SourceStatusCard(
             )
         }
     }
+}
+
+private fun contactsSourceDetail(status: IndexSourceAuthorityStatus?): String = when {
+    status == null -> "On-device · authority status unavailable"
+    status.available -> "On-device · authorization prerequisites satisfied"
+    else -> "On-device · blocked by ${missingAuthoritySummary(status)}"
+}
+
+private fun missingAuthoritySummary(status: IndexSourceAuthorityStatus): String =
+    status.missingRequirements.joinToString(separator = " · ") { requirement ->
+        authorityRequirementLabel(requirement)
+    }
+
+private fun authorityRequirementLabel(requirement: IndexAuthorityRequirement): String = when (requirement) {
+    IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION -> "Android Contacts permission"
+    IndexAuthorityRequirement.PRIVACY_SHIELD -> "Privacy Shield authorization"
+    IndexAuthorityRequirement.GOREECLOUD_IDENTITY -> "GoreeCloud Identity authorization"
 }
 
 @Composable
