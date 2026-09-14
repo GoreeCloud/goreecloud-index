@@ -23,9 +23,11 @@ Local-only execution must not perform Search capability preflight or network sea
 
 The initial Search capability contract is version `1`, capability ID `search.query`, endpoint `/api/v1/search`.
 
-Current Search capability evidence may advertise `POST` and `GET`, with `POST` preferred for first-party consumers. Development Index builds may consume explicitly non-production or legacy-GET capability evidence only when the build is itself Development and the exception is recorded in repository-local evidence.
+Current Search capability evidence may advertise `POST` and `GET`, with `POST` preferred for first-party consumers. The preferred production query transport is `json_body`, with `application/json` request/response media types, an explicit Privacy Shield authorization requirement, a 16 KiB request ceiling, and a bounded result maximum.
 
-Stable/production Index builds must require Search capability evidence that is explicitly production accepted **and** provides compatible POST transport with POST identified as the preferred method. This prevents the production Index contract from requiring query text to be placed in request URLs merely because legacy GET remains available.
+Development Index builds may consume explicitly non-production or legacy-GET capability evidence only when the build is itself Development and the exception is recorded in repository-local evidence.
+
+Stable/production Index builds must require Search capability evidence that is explicitly production accepted **and** matches the complete private transport contract: POST available and preferred, `json_body` preferred, JSON request/response media types, Privacy Shield authorization required, and the accepted request-size bound. A merely reachable endpoint or GET-compatible capability is insufficient.
 
 A Development exception must never be interpreted as permission to promote Index or Search to Stable.
 
@@ -45,13 +47,13 @@ The preferred production request representation is a bounded `application/json` 
 
 Index independently validates every executable Search destination. Only normalized HTTP(S) URLs with a valid host and no embedded user-info credentials may become `OpenWeb` actions.
 
-Invalid results are dropped as executable actions and must produce sanitized provider issue evidence without suppressing healthy sibling results.
+Invalid results are dropped as executable actions by the Index validation pipeline and must produce sanitized provider issue evidence without suppressing healthy sibling results. If Search returns more entries than the delegated limit, Index preserves its consumer-owned bounded cap rather than widening the result set.
 
 Search-owned raw numeric ranking metadata is transport/source metadata; Index must not compare that scale directly with app, contact, setting, file, or other provider scores. Current source integration instead preserves Search-owned result order only as a same-provider tie-breaker when Index-normalized relevance is equal.
 
 ## Degraded responses
 
-When Search reports partial degradation, Index may preserve valid results while surfacing degraded provider status. Degradation must not be hidden or rewritten as healthy availability.
+When Search reports partial degradation, Index may preserve valid results while surfacing degraded provider status. Degradation must not be hidden or rewritten as healthy availability. Invalid-result evidence takes precedence where applicable while valid sibling results remain usable.
 
 ## Cancellation
 
