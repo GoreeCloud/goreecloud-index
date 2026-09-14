@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAuthorityRequirement
+import com.goreecloud.index.core.IndexPermissionReviewPolicy
 import com.goreecloud.index.core.IndexProviderIssue
 import com.goreecloud.index.core.IndexProviderIssueKind
 import com.goreecloud.index.core.IndexResult
@@ -63,6 +65,7 @@ fun IndexRoot(
     authorityRevision: Int,
     sourceAuthorityStatuses: Map<String, IndexSourceAuthorityStatus>,
     onSearch: (String, Set<String>) -> Flow<IndexSearchSnapshot>,
+    onRequestContactsPermission: () -> Unit,
     onOpenResult: (IndexResult) -> Unit,
 ) {
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
@@ -142,6 +145,7 @@ fun IndexRoot(
                         enabledProviderIds - providerId
                     }
                 },
+                onRequestContactsPermission = onRequestContactsPermission,
             )
 
             if (searching) {
@@ -216,6 +220,7 @@ private fun SourceStatusCard(
     enabledProviderIds: Set<String>,
     sourceAuthorityStatuses: Map<String, IndexSourceAuthorityStatus>,
     onToggleProvider: (String, Boolean) -> Unit,
+    onRequestContactsPermission: () -> Unit,
 ) {
     val contactsStatus = sourceAuthorityStatuses[GoreeCloudIndexContract.PROVIDER_CONTACTS]
     val contactsEnabled = GoreeCloudIndexContract.PROVIDER_CONTACTS in enabledProviderIds
@@ -273,6 +278,21 @@ private fun SourceStatusCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+
+                if (IndexPermissionReviewPolicy.canRequestAndroidContactsPermission(contactsStatus)) {
+                    OutlinedButton(
+                        onClick = onRequestContactsPermission,
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        Text("Review Android Contacts permission")
+                    }
+                    Text(
+                        text = "Android owns this permission decision. Granting it addresses only the Android prerequisite; Privacy Shield and GoreeCloud Identity remain independent requirements.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
 
             Row(
