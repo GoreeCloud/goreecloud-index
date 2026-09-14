@@ -12,6 +12,7 @@ import com.goreecloud.index.core.IndexStatusAwareProvider
 import com.goreecloud.index.core.IndexTextMatcher
 import java.net.URI
 import java.util.Locale
+import java.util.UUID
 
 internal const val GOREECLOUD_SEARCH_API_VERSION = "1"
 internal const val GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID = "search.query"
@@ -94,11 +95,13 @@ data class GoreeCloudSearchCapability(
 )
 
 /**
- * Canonical Search-specific authorization intent. A concrete Privacy Shield IPC
- * or service client is responsible for adding its unique request_id and mapping
- * these fields into the authoritative decision request schema.
+ * Canonical Search-specific authorization request. The request identifier is
+ * created before Privacy Shield is invoked and must be echoed by its decision,
+ * preventing authorization evidence for another operation from being accepted
+ * merely because the remaining fields look compatible.
  */
 data class GoreeCloudSearchPrivacyAuthorizationRequest(
+    val requestId: String = UUID.randomUUID().toString(),
     val requesterId: String = GOREECLOUD_INDEX_PRIVACY_REQUESTER_ID,
     val requesterType: String = GOREECLOUD_INDEX_PRIVACY_REQUESTER_TYPE,
     val resourceId: String = GOREECLOUD_SEARCH_PRIVACY_RESOURCE_ID,
@@ -202,7 +205,11 @@ class GoreeCloudSearchProvider(
         val authorizer = checkNotNull(authorizationClient) {
             "GoreeCloud Search production delegation requires a Privacy Shield authorization client"
         }
-        val authorization = authorizer.authorize(GoreeCloudSearchPrivacyAuthorizationRequest())
+        val authorizationRequest = GoreeCloudSearchPrivacyAuthorizationRequest()
+        check(authorizationRequest.requestId.isNotBlank()) {
+            "GoreeCloud Search production delegation requires a Privacy Shield request identifier"
+        }
+        val authorization = authorizer.authorize(authorizationRequest)
         return authorization.capabilityTokenReference
             .trim()
             .takeIf(String::isNotEmpty)
