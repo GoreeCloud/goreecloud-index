@@ -16,6 +16,7 @@ required = [
     "app/src/main/java/com/goreecloud/index/provider/contacts/ContactsProvider.kt",
     "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt",
     "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt",
+    "app/src/test/java/com/goreecloud/index/core/IndexIncrementalSearchTest.kt",
     "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt",
     "goreecloud/privacy-shield.application-manifest.json",
     "goreecloud/privacy-shield.adapter.json",
@@ -156,7 +157,9 @@ for expected in [
     "IndexProviderIssueKind.AUTHORIZATION_REQUIRED", "IndexExecutionContext",
     "providerAuthorities", "authorityRequirements", "supportsEmptyQuery",
     "authorizationIssue", "allowedProviderIds", "localOnly", "processingLocation",
-    "timeoutMillis", "suspend fun search", "supervisorScope", "async(providerDispatcher)",
+    "timeoutMillis", "suspend fun search", "fun searchIncrementally(",
+    "Flow<IndexSearchSnapshot>", "supervisorScope", "launch(providerDispatcher)",
+    "Channel<Pair<Int, IndexProviderOutcome>>", "composeSnapshot(", ".last()",
     "withTimeout", "catch (_: TimeoutCancellationException)",
     "catch (cancellation: CancellationException)", "throw cancellation",
     "IndexProviderIssueKind.TIMED_OUT", "IndexProviderIssueKind.FAILED",
@@ -202,8 +205,8 @@ for expected in [
     "ContactsProvider", "PROVIDER_APPS", "PROVIDER_CONTACTS", "providerAuthorities",
     "Manifest.permission.READ_CONTACTS", "IndexPlatformAuthorityGateway",
     "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection.project",
-    "platformAuthorityGateway.contactsSnapshot()", "IndexAction.ViewContact",
-    "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
+    "platformAuthorityGateway.contactsSnapshot()", "queryEngine.searchIncrementally(",
+    "IndexAction.ViewContact", "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
     'uri.pathSegments.firstOrNull() == "contacts"', "Unable to open this application.",
     "Unable to open this contact.",
 ]:
@@ -212,14 +215,15 @@ for expected in [
 
 ui = (ROOT / "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt").read_text(encoding="utf-8")
 for expected in [
-    "suspend (String) -> IndexSearchSnapshot", "LaunchedEffect(query)",
-    "Searching authorized sources…", "IndexProviderIssueKind.TIMED_OUT",
-    "IndexProviderIssueKind.AUTHORIZATION_REQUIRED", "Contacts · On-device · Authority gated",
+    "(String) -> Flow<IndexSearchSnapshot>", "LaunchedEffect(query)",
+    "collect { update ->", "snapshot = update", "Searching authorized sources…",
+    "IndexProviderIssueKind.TIMED_OUT", "IndexProviderIssueKind.AUTHORIZATION_REQUIRED",
+    "Contacts · On-device · Authority gated",
     "Required permission or platform authority evidence is incomplete",
     "WindowInsets.safeDrawing", "heightIn(min = 72.dp)", "People · On-device",
 ]:
     if expected not in ui:
-        raise SystemExit(f"Missing multi-source/degraded UI contract: {expected}")
+        raise SystemExit(f"Missing multi-source/incremental UI contract: {expected}")
 
 tests = (ROOT / "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt").read_text(encoding="utf-8")
 for expected in [
@@ -235,6 +239,20 @@ for expected in [
 ]:
     if expected not in tests:
         raise SystemExit(f"Missing async/authority runtime test: {expected}")
+
+incremental_tests = (
+    ROOT / "app/src/test/java/com/goreecloud/index/core/IndexIncrementalSearchTest.kt"
+).read_text(encoding="utf-8")
+for expected in [
+    "incrementalSearchEmitsInitialThenProviderCompletionSnapshots",
+    "strongerLateRemoteResultReRanksThroughSameDeterministicComposition",
+    "authorizationIssueIsEmittedWithoutDispatchingProtectedProvider",
+    "cancellingIncrementalCollectionCancelsOutstandingProviderWork",
+    "oneShotSearchMatchesFinalIncrementalSnapshot",
+    "searchIncrementally", "StandardTestDispatcher", "awaitCancellation",
+]:
+    if expected not in incremental_tests:
+        raise SystemExit(f"Missing incremental search regression: {expected}")
 
 platform_tests = (
     ROOT / "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt"
