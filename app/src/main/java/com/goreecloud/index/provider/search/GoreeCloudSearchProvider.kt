@@ -17,6 +17,7 @@ internal const val GOREECLOUD_SEARCH_API_VERSION = "1"
 internal const val GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID = "search.query"
 internal const val GOREECLOUD_SEARCH_QUERY_ENDPOINT = "/api/v1/search"
 internal const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
+internal const val GOREECLOUD_SEARCH_PREFERRED_METHOD = "POST"
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
 
 /**
@@ -56,6 +57,9 @@ data class GoreeCloudSearchCapability(
     val endpoint: String,
     val maxResults: Int,
     val productionAccepted: Boolean,
+    /** Additive transport evidence. Legacy Development producers may omit it. */
+    val methods: Set<String> = setOf("GET"),
+    val preferredMethod: String = "GET",
 )
 
 enum class GoreeCloudSearchAcceptanceMode {
@@ -137,6 +141,12 @@ class GoreeCloudSearchProvider(
         if (acceptanceMode == GoreeCloudSearchAcceptanceMode.PRODUCTION) {
             check(capability.productionAccepted) {
                 "GoreeCloud Search query capability is not production accepted"
+            }
+            check(
+                GOREECLOUD_SEARCH_PREFERRED_METHOD in capability.methods &&
+                    capability.preferredMethod == GOREECLOUD_SEARCH_PREFERRED_METHOD
+            ) {
+                "GoreeCloud Search query capability does not provide the required production POST transport"
             }
         }
         check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
