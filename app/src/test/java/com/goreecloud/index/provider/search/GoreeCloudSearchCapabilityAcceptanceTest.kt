@@ -213,6 +213,35 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
     }
 
     @Test
+    fun productionModeRejectsNoncanonicalPrivacyCapabilityReferenceBeforeQuery() = runTest {
+        var searchCalls = 0
+        val provider = GoreeCloudSearchProvider(
+            client = GoreeCloudSearchClient { request ->
+                searchCalls++
+                emptyResponse(request)
+            },
+            capabilityClient = GoreeCloudSearchCapabilityClient {
+                capability(productionAccepted = true)
+            },
+            acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
+            authorizationClient = GoreeCloudSearchAuthorizationClient {
+                GoreeCloudSearchPrivacyAuthorization("privacy-shield:capability:test")
+            },
+        )
+
+        val failure = runCatching {
+            provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "GoreeCloud Search production delegation requires a canonical Privacy Shield capability reference",
+            failure?.message,
+        )
+        assertEquals(0, searchCalls)
+    }
+
+    @Test
     fun productionModeCarriesCapabilityTokenReferenceWithSearchOperation() = runTest {
         var observedRequest: GoreeCloudSearchRequest? = null
         var observedAuthorizationRequest: GoreeCloudSearchPrivacyAuthorizationRequest? = null
@@ -227,7 +256,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
             acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
             authorizationClient = GoreeCloudSearchAuthorizationClient { request ->
                 observedAuthorizationRequest = request
-                GoreeCloudSearchPrivacyAuthorization("psc_test")
+                GoreeCloudSearchPrivacyAuthorization(" psc_test ")
             },
         )
 
@@ -238,6 +267,32 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         assertEquals("https://search.goreecloud.com", observedAuthorizationRequest?.destination)
         assertEquals("none", observedAuthorizationRequest?.retentionMode)
         assertEquals("psc_test", observedRequest?.privacyCapabilityReference)
+    }
+
+    @Test
+    fun productionModeAcquiresFreshAuthorizationForEachQuery() = runTest {
+        var authorizationCalls = 0
+        val observedReferences = mutableListOf<String?>()
+        val provider = GoreeCloudSearchProvider(
+            client = GoreeCloudSearchClient { request ->
+                observedReferences += request.privacyCapabilityReference
+                emptyResponse(request)
+            },
+            capabilityClient = GoreeCloudSearchCapabilityClient {
+                capability(productionAccepted = true)
+            },
+            acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
+            authorizationClient = GoreeCloudSearchAuthorizationClient {
+                authorizationCalls++
+                GoreeCloudSearchPrivacyAuthorization("psc_query_$authorizationCalls")
+            },
+        )
+
+        provider.searchWithStatus(IndexQuery(text = "first", maxResults = 1))
+        provider.searchWithStatus(IndexQuery(text = "second", maxResults = 1))
+
+        assertEquals(2, authorizationCalls)
+        assertEquals(listOf("psc_query_1", "psc_query_2"), observedReferences)
     }
 
     private fun provider(
