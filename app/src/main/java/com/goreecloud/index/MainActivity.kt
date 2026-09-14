@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                 IndexRoot(
                     initialQuery = intent.getStringExtra(GoreeCloudIndexContract.EXTRA_QUERY).orEmpty(),
                     onSearch = { query ->
-                        queryEngine.search(
+                        queryEngine.searchIncrementally(
                             rawQuery = query,
                             executionContext = executionContext(),
                         )
