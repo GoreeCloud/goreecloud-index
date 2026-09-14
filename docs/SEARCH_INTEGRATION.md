@@ -23,7 +23,9 @@ Local-only execution must not perform Search capability preflight or network sea
 
 The initial Search capability contract is version `1`, capability ID `search.query`, endpoint `/api/v1/search`.
 
-Development builds may consume explicitly non-production capability evidence only when the build is itself Development and the exception is recorded in repository-local evidence. Stable/production Index builds must require Search capability evidence that is explicitly production accepted.
+Current Search capability evidence may advertise `POST` and `GET`, with `POST` preferred for first-party consumers. Development Index builds may consume explicitly non-production or legacy-GET capability evidence only when the build is itself Development and the exception is recorded in repository-local evidence.
+
+Stable/production Index builds must require Search capability evidence that is explicitly production accepted **and** provides compatible POST transport with POST identified as the preferred method. This prevents the production Index contract from requiring query text to be placed in request URLs merely because legacy GET remains available.
 
 A Development exception must never be interpreted as permission to promote Index or Search to Stable.
 
@@ -37,13 +39,15 @@ Index delegates only:
 
 Index must not send installed apps, contacts, files, calendar items, local result sets, device inventory, Identity identifiers, or unrelated authorization evidence payloads to Search.
 
+The preferred production request representation is a bounded `application/json` POST body. Query text must not be duplicated into the request URL when the POST transport is used.
+
 ## Result handling
 
 Index independently validates every executable Search destination. Only normalized HTTP(S) URLs with a valid host and no embedded user-info credentials may become `OpenWeb` actions.
 
 Invalid results are dropped as executable actions and must produce sanitized provider issue evidence without suppressing healthy sibling results.
 
-Search-owned ranking metadata may inform future blending, but Index remains responsible for cross-provider composition and must avoid allowing one remote score scale to dominate unrelated local providers without a documented normalization strategy.
+Search-owned raw numeric ranking metadata is transport/source metadata; Index must not compare that scale directly with app, contact, setting, file, or other provider scores. Current source integration instead preserves Search-owned result order only as a same-provider tie-breaker when Index-normalized relevance is equal.
 
 ## Degraded responses
 
