@@ -2,7 +2,9 @@
 
 ## Lifecycle State
 
-**Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` provider/authority work remains branch source until exact-head CI and merge acceptance complete.
+**Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` provider/authority work remains branch source until normal merge acceptance completes.
+
+The latest verified implementation checkpoint is `36056e4640e9c083fadbcabc0b0fa05d40615070`. Platform Contract #36 and Android Index foundation validation #163 passed on that exact revision.
 
 ## Native Implementation
 
@@ -39,10 +41,33 @@
 - [x] Branch source: provider authority requirements and evidence.
 - [x] Branch source: `AUTHORIZATION_REQUIRED` state.
 - [x] Branch source: non-browsing providers excluded on blank query.
+- [x] Incremental Flow emits an initial snapshot containing static compatibility/authorization state before eligible provider completion.
+- [x] Incremental Flow emits a newly recomposed snapshot after each eligible provider completes rather than waiting for all providers.
+- [x] Incremental snapshots use the same normalized relevance, health, processing-location, deterministic-identity, validation, fan-out, and deduplication logic as the final result.
+- [x] A late stronger result can deterministically re-rank ahead of earlier weaker results without giving completion order ranking authority.
+- [x] One-shot `search()` consumes the last incremental snapshot instead of maintaining a second composition path.
+- [x] Cancelling incremental collection cancels outstanding provider work and does not manufacture provider failures.
+- [x] Repository guard now requires the incremental Flow/launch/composition/UI wiring and the dedicated incremental regression suite.
 - [ ] Intent-aware/result-type/source-confidence/richer-health/privacy-cost blending beyond the current textual + degraded-state + local-first baseline.
-- [ ] Incremental/streaming results.
+- [ ] Representative-device incremental-rendering/perceived-latency acceptance.
+- [ ] Bounded update coalescing if measured provider counts/completion cadence produce excessive UI churn.
 - [ ] Richer provider health/capability negotiation.
 - [ ] Bounded top-K provider-local selection that avoids full local sort if future measured result volumes justify the added complexity.
+
+## Incremental Delivery Evidence
+
+Exact implementation checkpoint `36056e4640e9c083fadbcabc0b0fa05d40615070` passed Android Index foundation validation #163 and Platform Contract #36.
+
+Dedicated source regressions verify:
+
+- initial snapshot emission before provider completion;
+- an early local result becoming visible while a slower remote provider is still in flight;
+- deterministic re-ranking when a later remote result has stronger Index-owned relevance;
+- fail-closed `AUTHORIZATION_REQUIRED` emission without dispatching the protected provider;
+- collector cancellation propagating to outstanding provider work;
+- exact equality between one-shot `search()` output and the final `searchIncrementally()` snapshot.
+
+These are source/build checks. They do not establish representative-device UI smoothness, performance targets, accessibility acceptance, production Search transport, or Stable qualification.
 
 ## Authority Model
 
@@ -50,6 +75,7 @@
 - [x] Privacy Shield/Identity evidence requires referenced unconstrained `ALLOW` for the provider paths that use that evidence model.
 - [x] `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE` fail closed.
 - [x] Missing authority prevents provider dispatch.
+- [x] Static compatibility/authorization issues are computed before incremental provider launch and can be exposed in the initial snapshot.
 - [x] Internal execution context is not described as platform authorization.
 - [x] Branch source: remote GoreeCloud Search uses a separate operation-scoped Privacy Shield authorization adapter and canonical `psc_*` capability-reference boundary.
 - [ ] Accepted Privacy Shield runtime adapter/decision-acquisition transport.
@@ -92,11 +118,12 @@
 - [x] Historical `1.1.0` and `2.1.0` values are treated as superseded implementation history, not current release authority.
 - [x] Search-first interaction and visible source/authority state remain explicit.
 - [x] Authorization-required state remains distinct from operational failure/timeout.
+- [x] Compose source now consumes incremental `IndexSearchSnapshot` Flow updates while preserving the same issue/result surface.
 - [x] Safe-drawing insets, bounded targets, semantic headings, and non-animated progress remain represented in the Development source line.
 - [ ] Repository-local rendered/native V1.4 visual acceptance.
 - [ ] Reduced Transparency / Increased Contrast / Reduced Motion / large-text acceptance.
 - [ ] Localization/RTL acceptance.
-- [ ] Representative phone/tablet/form-factor and performance acceptance.
+- [ ] Representative phone/tablet/form-factor and performance acceptance, including incremental result-update behavior.
 - [ ] Formal application-specific V1.4 conformance and production acceptance.
 
 ## Privacy Shield
@@ -104,6 +131,7 @@
 - [x] No silent remote fallback.
 - [x] Local providers declare local processing where applicable.
 - [x] No intentional persistent search history or query analytics.
+- [x] Incremental snapshots retain only current in-memory query results/issues and do not create a persistent history mechanism.
 - [x] Branch source consumes decision outcome/reference separately from Android permission.
 - [x] Branch source uses a bounded operation-scoped capability-reference contract for production Search delegation preparation.
 - [ ] Real Privacy Shield request/response decision-acquisition adapter and accepted runtime evidence.
@@ -129,7 +157,7 @@
 
 GoreeCloud Sync is a separate application/service capability, not one of the seven Integral Platform Systems.
 
-- [x] Transient query text and search history are not designated as Sync datasets.
+- [x] Transient query text, incremental snapshots, and search history are not designated as Sync datasets.
 - [x] The Platform Contract manifest does not misclassify Sync as a `platform_systems` member.
 - [ ] Define explicit GoreeCloud Sync dataset contracts only for future approved durable Index state where synchronization is genuinely applicable.
 - [ ] Complete runtime registration, authorization, reconciliation, conflict/deletion behavior, privacy review, and cross-device acceptance before claiming synchronized Index state.
