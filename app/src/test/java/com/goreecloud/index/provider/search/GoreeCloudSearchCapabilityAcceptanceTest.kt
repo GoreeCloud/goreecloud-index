@@ -16,6 +16,11 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
                 productionAccepted = false,
                 methods = setOf("GET"),
                 preferredMethod = "GET",
+                preferredQueryTransport = "url_query",
+                requestMediaType = null,
+                responseMediaType = null,
+                privacyAuthorizationRequired = false,
+                maxRequestBytes = 0,
             ),
         ) {
             searchCalls++
@@ -73,7 +78,32 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
     }
 
     @Test
-    fun productionModeAcceptsProductionPostCapability() = runTest {
+    fun productionModeRejectsUrlQueryTransportBeforeQuery() = runTest {
+        var searchCalls = 0
+        val provider = provider(
+            mode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
+            capability = capability(
+                productionAccepted = true,
+                preferredQueryTransport = "url_query",
+            ),
+        ) {
+            searchCalls++
+        }
+
+        val failure = runCatching {
+            provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "GoreeCloud Search query capability does not provide the required private JSON-body contract",
+            failure?.message,
+        )
+        assertEquals(0, searchCalls)
+    }
+
+    @Test
+    fun productionModeAcceptsProductionPostBodyCapability() = runTest {
         var searchCalls = 0
         val provider = provider(
             mode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
@@ -109,6 +139,11 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         productionAccepted: Boolean,
         methods: Set<String> = setOf("POST", "GET"),
         preferredMethod: String = GOREECLOUD_SEARCH_PREFERRED_METHOD,
+        preferredQueryTransport: String = GOREECLOUD_SEARCH_PREFERRED_QUERY_TRANSPORT,
+        requestMediaType: String? = GOREECLOUD_SEARCH_REQUEST_MEDIA_TYPE,
+        responseMediaType: String? = GOREECLOUD_SEARCH_RESPONSE_MEDIA_TYPE,
+        privacyAuthorizationRequired: Boolean = true,
+        maxRequestBytes: Int = GOREECLOUD_SEARCH_MAX_REQUEST_BYTES,
     ): GoreeCloudSearchCapability = GoreeCloudSearchCapability(
         id = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
         contractVersion = GOREECLOUD_SEARCH_API_VERSION,
@@ -119,5 +154,10 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         productionAccepted = productionAccepted,
         methods = methods,
         preferredMethod = preferredMethod,
+        preferredQueryTransport = preferredQueryTransport,
+        requestMediaType = requestMediaType,
+        responseMediaType = responseMediaType,
+        privacyAuthorizationRequired = privacyAuthorizationRequired,
+        maxRequestBytes = maxRequestBytes,
     )
 }
