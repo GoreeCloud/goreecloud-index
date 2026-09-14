@@ -56,4 +56,60 @@ class IndexSourceControlsTest {
         assertEquals(contactsAuthority, context.providerAuthorities[GoreeCloudIndexContract.PROVIDER_CONTACTS])
         assertFalse(GoreeCloudIndexContract.PROVIDER_SEARCH in context.allowedProviderIds)
     }
+
+    @Test
+    fun contactsAuthorityProjectionReportsOnlyMissingAuthorityDomains() {
+        val authority = IndexProviderAuthority(
+            androidPermissionGranted = true,
+            privacyShield = IndexAuthorityEvidence(
+                outcome = IndexAuthorityOutcome.ALLOW,
+                reference = "privacy-sensitive-reference",
+            ),
+            identity = IndexAuthorityEvidence.unavailable(),
+        )
+
+        val status = IndexSourceAuthorityProjection.contacts(authority)
+
+        assertFalse(status.available)
+        assertEquals(
+            linkedSetOf(IndexAuthorityRequirement.GOREECLOUD_IDENTITY),
+            status.missingRequirements,
+        )
+        assertFalse(status.toString().contains("privacy-sensitive-reference"))
+    }
+
+    @Test
+    fun contactsAuthorityProjectionReportsAllPrerequisitesWhenAuthorityIsUnavailable() {
+        val status = IndexSourceAuthorityProjection.contacts(IndexProviderAuthority())
+
+        assertFalse(status.available)
+        assertEquals(
+            linkedSetOf(
+                IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+                IndexAuthorityRequirement.PRIVACY_SHIELD,
+                IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+            ),
+            status.missingRequirements,
+        )
+    }
+
+    @Test
+    fun contactsAuthorityProjectionBecomesAvailableOnlyWhenEveryRequirementIsSatisfied() {
+        val authority = IndexProviderAuthority(
+            androidPermissionGranted = true,
+            privacyShield = IndexAuthorityEvidence(
+                outcome = IndexAuthorityOutcome.ALLOW,
+                reference = "privacy-reference",
+            ),
+            identity = IndexAuthorityEvidence(
+                outcome = IndexAuthorityOutcome.ALLOW,
+                reference = "identity-reference",
+            ),
+        )
+
+        val status = IndexSourceAuthorityProjection.contacts(authority)
+
+        assertTrue(status.available)
+        assertTrue(status.missingRequirements.isEmpty())
+    }
 }
