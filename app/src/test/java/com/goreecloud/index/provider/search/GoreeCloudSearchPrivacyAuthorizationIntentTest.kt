@@ -6,9 +6,12 @@ import org.junit.Test
 
 class GoreeCloudSearchPrivacyAuthorizationIntentTest {
     @Test
-    fun defaultIntentContainsCanonicalPrivacyShieldDecisionFields() {
-        val request = GoreeCloudSearchPrivacyAuthorizationRequest()
+    fun intentContainsCanonicalPrivacyShieldDecisionFieldsAndRequestId() {
+        val request = GoreeCloudSearchPrivacyAuthorizationRequest(
+            requestId = "index-search-request-123",
+        )
 
+        assertEquals("index-search-request-123", request.requestId)
         assertEquals("goreecloud-index", request.requesterId)
         assertEquals("application", request.requesterType)
         assertEquals("goreecloud.search.query", request.resourceId)
@@ -19,5 +22,15 @@ class GoreeCloudSearchPrivacyAuthorizationIntentTest {
         assertEquals("https://search.goreecloud.com", request.destination)
         assertEquals("none", request.retentionMode)
         assertFalse(request.externalDisclosure)
+    }
+
+    @Test
+    fun defaultIntentGeneratesDistinctRequestIds() {
+        val first = GoreeCloudSearchPrivacyAuthorizationRequest()
+        val second = GoreeCloudSearchPrivacyAuthorizationRequest()
+
+        assertFalse(first.requestId.isBlank())
+        assertFalse(second.requestId.isBlank())
+        assertFalse(first.requestId == second.requestId)
     }
 }
