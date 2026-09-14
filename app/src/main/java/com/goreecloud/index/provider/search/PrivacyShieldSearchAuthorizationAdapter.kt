@@ -18,6 +18,9 @@ class PrivacyShieldSearchAuthorizationAdapter(
     override suspend fun authorize(
         request: GoreeCloudSearchPrivacyAuthorizationRequest,
     ): GoreeCloudSearchPrivacyAuthorization {
+        require(request.requestId.isNotBlank()) {
+            "Privacy Shield Search authorization request is missing a request identifier"
+        }
         val decision = decisionClient.decide(request)
         validateDecision(request, decision, clock())
         return GoreeCloudSearchPrivacyAuthorization(
@@ -32,6 +35,9 @@ class PrivacyShieldSearchAuthorizationAdapter(
     ) {
         check(decision.decisionId.isNotBlank()) {
             "Privacy Shield Search decision is missing a decision identifier"
+        }
+        check(decision.requestId == request.requestId) {
+            "Privacy Shield Search decision does not match the authorization request"
         }
         check(decision.outcome == "ALLOW") {
             "Privacy Shield Search decision is not an unconstrained allow"
@@ -72,6 +78,7 @@ fun interface PrivacyShieldDecisionClient {
 
 data class PrivacyShieldSearchDecision(
     val decisionId: String,
+    val requestId: String,
     val outcome: String,
     val permittedOperations: Set<String>,
     val processingZone: String,
