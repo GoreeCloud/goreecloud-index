@@ -4,7 +4,7 @@
 
 **Release lifecycle: Development.** Accepted `main` remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current branch work is Development source pending normal merge acceptance. Production acceptance and Stable qualification remain false.
 
-The latest verified implementation checkpoint is `36056e4640e9c083fadbcabc0b0fa05d40615070`. Platform Contract #36 and Android Index foundation validation #163 passed on that exact revision, including repository contract validation, unit tests, lint, Development APK assembly, APK identity verification, and evidence upload.
+The latest verified implementation checkpoint is `b201e182d0698bee55f19e37e46f9d42f419c638`. Platform Contract #47 and Android Index foundation validation #174 passed on that exact revision, including repository and provider contract validation, unit tests, lint, Development APK assembly, APK identity verification, and evidence upload.
 
 ## Authority Model
 
@@ -21,17 +21,26 @@ GoreeCloud Index coordinates universal search; it does not own provider resource
 - Everkeep remains authoritative for continuity of applicable durable Index configuration.
 - GoreeCloud Mesh may coordinate first-party provider discovery without taking source authority.
 
+User source selection is **not** authority. A selected provider must still pass scope, provider-contract, processing-location, Android permission, Privacy Shield, GoreeCloud Identity, and other applicable authority gates before Index can dispatch it.
+
 ## Query Flow
 
 ```text
 Launcher, Browser, or user
   → Index invocation
   → MainActivity
+  → IndexDevelopmentSourcePolicy
+      → sanitize session-selected provider IDs against reviewed local selectable set
+      → reject unknown providers and GoreeCloud Search from Development user selection
+      → force localOnly=true
+      → preserve provider authority evidence without granting new authority
   → IndexExecutionContext
       → exact provider allowlist
       → local/remote processing boundary
       → provider authority evidence
   → IndexRoot / query lifecycle
+      → query text + current session source-selection state
+      → changing query or enabled sources replaces the active collection
   → IndexQueryEngine.searchIncrementally
       → normalize query + clamp result limit
       → blank-query applicability
@@ -67,6 +76,8 @@ This is a **consumer contract**, not substitute authority. No Identity endpoint 
 
 Incremental delivery does not weaken this boundary. Static compatibility and authorization issues are computed before provider dispatch and are present in the initial Flow snapshot. A provider that fails scope, contract, or authority checks is never launched merely to produce incremental UI state.
 
+Session source controls also do not weaken the boundary. Turning a source on only places that reviewed local provider into the candidate allowlist; authority evaluation still happens independently for every query. Turning a source off prevents dispatch without altering the provider's underlying Android or GoreeCloud authority state.
+
 ## Provider Contract
 
 `IndexProvider` declares stable identity, display name, processing location, timeout, authority requirements, blank-query support, contract version, and suspendable search behavior.
@@ -81,9 +92,29 @@ Provider completion order controls only **when** a partial snapshot can be emitt
 
 The provider-declared `processingLocation` is available to Index-owned composition only after the provider passes scope and authority gates. It is not authorization: a remote provider must first be eligible and authorized before any ranking tie-break can consider its results.
 
+## Development Source-Control Policy
+
+`IndexDevelopmentSourcePolicy` is the current user-selectable source boundary for the Android Development application.
+
+The policy intentionally exposes only the already integrated local providers:
+
+- Applications;
+- Settings; and
+- Contacts.
+
+It does **not** expose GoreeCloud Search, arbitrary provider IDs, future providers, or third-party providers as user-selectable Development sources. Requested provider IDs are intersected with the reviewed selectable set before an `IndexExecutionContext` is built.
+
+Every execution context constructed through this policy forces `localOnly=true`. This is independent of the visual state of the UI and prevents a source-control regression from silently broadening processing to a remote provider.
+
+The policy preserves already supplied provider-authority evidence, but it does not create, upgrade, or infer authority. For example, selecting Contacts cannot satisfy missing Android `READ_CONTACTS`, Privacy Shield, or GoreeCloud Identity authority; Contacts remains non-dispatchable until the underlying authority requirements are satisfied.
+
+The current source-selection state is session-scoped Compose state only. It is deliberately not persisted to disk, synchronized, or backed up. Any future durable provider preferences require explicit profile/device scope plus applicable Everkeep continuity/recovery semantics before they become authoritative durable Index state.
+
 ## Applications Provider
 
 `InstalledAppsProvider` is a local provider using scoped launcher discovery, label/package matching, exact component actions, and no `QUERY_ALL_PACKAGES` requirement. It already respects `query.maxResults` before returning results.
+
+Applications may be disabled for the current Index session. This affects Index dispatch only; it does not change Android package visibility or application authority.
 
 ## Contacts Provider
 
@@ -97,13 +128,15 @@ The Contacts provider uses Android ContactsProvider authority through `ContactsC
 - Android permission plus Privacy Shield and Identity authority evidence;
 - bounded result collection using the requested result count and the provider's own hard ceiling.
 
-Incomplete or unenforceable authority must prevent provider dispatch.
+Incomplete or unenforceable authority must prevent provider dispatch. Enabling the Contacts source toggle is not an opt-in substitute for Android permission or GoreeCloud authority.
 
 ## Settings Provider
 
 The Settings provider is a bounded local navigation provider over repository-defined destination metadata. It does not read device setting values or configuration state. It already limits output to the requested result count.
 
 Actions must remain inside the exact reviewed allowlist. Arbitrary Android actions, URLs, data URIs, and extras are not supported by this provider contract.
+
+Settings source eligibility is now centralized in `IndexDevelopmentSourcePolicy`; `MainActivity` no longer carries a second provider-ID allowlist. The dedicated Settings validation guard checks that Settings remains present in the centralized local-only source policy and that its typed handoff stays bounded.
 
 ## GoreeCloud Search Provider
 
@@ -122,6 +155,8 @@ The Search provider is the remote Internet/current-information provider.
 Development builds may consume explicitly Development-only Search capability evidence only as Development evidence. Stable/production Index builds must require explicitly production-accepted Search capability evidence.
 
 The incremental engine is transport-neutral: it can incorporate a future authorized remote Search provider when that provider becomes eligible, but it does **not** itself enable remote Search, acquire Privacy Shield authority, or authenticate a requester.
+
+The current session source-control UI cannot enable GoreeCloud Search. This is intentional fail-closed behavior while accepted requester/service authentication, real Privacy Shield decision acquisition, Search-side capability verification, and remote-processing product acceptance remain incomplete.
 
 See [`docs/SEARCH_INTEGRATION.md`](docs/SEARCH_INTEGRATION.md).
 
@@ -173,7 +208,7 @@ This is a bounded baseline, not the final blending model. Future ranking work ca
 - cancelling the Flow collector cancels the supervisor scope and outstanding provider jobs;
 - `CancellationException` is rethrown and is never converted into `FAILED` or `TIMED_OUT`;
 - provider-owned timeouts remain separately reported as `TIMED_OUT`;
-- the Compose query lifecycle collects the Flow, so a replacement query cancels the prior collection and its outstanding provider work;
+- the Compose query lifecycle collects the Flow, so a replacement query or source selection cancels the prior collection and its outstanding provider work;
 - one-shot `search()` returns the last Flow snapshot, providing one composition authority rather than two.
 
 This improves perceived latency when a fast eligible provider can produce useful results before a slower provider completes. It does not claim measured representative-device performance acceptance. Future optimization may add bounded UI-update coalescing or top-K selection if evidence shows that large provider counts/result volumes create churn or sorting pressure; such optimization must preserve deterministic final ordering and source-state evidence.
@@ -182,9 +217,13 @@ This improves perceived latency when a fast eligible provider can produce useful
 
 Index UI remains source-aware and exposes meaningful provider health/authority states without disclosing sensitive internal evidence.
 
-The Compose surface now renders incremental `IndexSearchSnapshot` updates from the query Flow. Existing results may stay visible and be deterministically reordered as later providers complete. The `searching` state remains active until the Flow completes or is cancelled.
+The Compose surface renders incremental `IndexSearchSnapshot` updates from the query Flow. Existing results may stay visible and be deterministically reordered as later providers complete. The `searching` state remains active until the Flow completes or is cancelled.
 
-The UI distinguishes authorization required, failed provider, timed out provider, degraded provider, invalid/bounded provider output, and no results. `INVALID_RESULT` user-facing text intentionally covers provenance/required-field/source-order failures and requested-result-limit violations without exposing sensitive internal payloads.
+The UI now also provides a `Search sources` control card for Applications, Settings, and Contacts. The controls are session-scoped and immediately update the query execution context. The card explicitly explains that source selection does not grant missing permissions or platform authority.
+
+A disabled `Local-only mode` indicator communicates that local-only execution is enforced by the Development build rather than being a cosmetic switch. The same surface states that Internet/Web results remain unavailable and that Index will not silently activate GoreeCloud Search or another remote provider when a local source is disabled, unavailable, or unauthorized.
+
+The UI distinguishes authorization required, failed provider, timed out provider, degraded provider, invalid/bounded provider output, intentionally empty source selection, and ordinary no results. `INVALID_RESULT` user-facing text intentionally covers provenance/required-field/source-order failures and requested-result-limit violations without exposing sensitive internal payloads.
 
 ## Glaze UI
 
@@ -192,7 +231,7 @@ The current official Stable consumer target is **Glaze UI V1.4 / `1.4.0`**.
 
 Earlier Index documentation referenced historical/inconsistent targets. They are not current conformance authority.
 
-Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence. Incremental rendering is source-level behavior and does not itself satisfy those product-specific acceptance gates.
+Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence. Incremental rendering and the new source-control surface are source-level behavior and do not themselves satisfy those product-specific acceptance gates.
 
 ## Failure and Recovery Model
 
@@ -204,14 +243,17 @@ Index is migration-required until Index-owned surfaces and native mappings have 
 - Provider returns invalid provenance/required fields/source order → invalid entries are removed and `INVALID_RESULT` remains visible.
 - Equal relevance and health across different processing locations → prefer local execution without overriding a stronger remote result.
 - Late stronger provider result → accumulated snapshot is deterministically recomposed and may reorder earlier results.
-- Collector/query cancellation → outstanding provider work is cancelled; no synthetic provider failure is manufactured.
+- Collector/query/source-selection cancellation → outstanding provider work is cancelled; no synthetic provider failure is manufactured.
+- Source disabled for current session → provider excluded before dispatch; unrelated source/authority state is unchanged.
+- Unknown or remote provider injected into Development source-selection state → removed by the centralized selectable-source policy.
+- Selected provider lacking required authority → remains non-dispatchable; selection is not authorization.
 - Disallowed provider → not dispatched.
 - Remote provider under local-only execution → not dispatched and not preflighted.
 - Blank query + non-browsing provider → provider not considered and no authority issue emitted.
 - Invalid result action → blocked at handoff.
 - No silent remote fallback.
 
-Durable Index preferences/configuration introduced in future work must define Everkeep backup/recovery behavior before Stable acceptance.
+Durable Index preferences/configuration introduced in future work must define Everkeep backup/recovery behavior before Stable acceptance. Current session source-selection state is intentionally non-durable.
 
 ## Accepted Main Evidence
 
@@ -221,11 +263,13 @@ This is Development evidence only.
 
 ## Next Architecture Milestones
 
-1. complete accepted Privacy Shield and Identity adapter paths with explicit user-decision handling;
-2. validate Contacts on representative devices;
-3. harden the Search provider capability lifecycle and production-acceptance gate;
-4. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
-5. measure incremental rendering/provider completion behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
-6. expand files/calendar/media providers only after authority and privacy boundaries are proven;
-7. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
-8. add Everkeep recovery semantics for any new durable Index preference/provider state.
+1. add permission-review and authority-explanation UX that guides users toward authoritative Android/Privacy Shield/Identity decisions without manufacturing those decisions locally;
+2. define profile/device scoping plus Everkeep continuity semantics before persisting provider preferences;
+3. complete accepted Privacy Shield and Identity adapter paths with explicit user-decision handling;
+4. validate Contacts on representative devices;
+5. harden the Search provider capability lifecycle and production-acceptance gate before making an Internet provider user-selectable;
+6. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
+7. measure incremental rendering/provider completion and source-toggle behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
+8. expand files/calendar/media providers only after authority and privacy boundaries are proven;
+9. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
+10. add Everkeep recovery semantics for any new durable Index preference/provider state.
