@@ -29,18 +29,14 @@ Launcher, Browser, or user
       → exact provider allowlist
       → local/remote processing boundary
       → provider authority evidence
-          → Android runtime permission (where applicable)
-          → Privacy Shield decision reference
-          → GoreeCloud Identity authorization reference
   → IndexRoot / query lifecycle
   → IndexQueryEngine
       → blank-query applicability
       → fail-closed authority evaluation
-      → AUTHORIZATION_REQUIRED for incomplete authority
       → structured concurrent dispatch
-      → per-provider timeout
-      → preserve cancellation
-      → normalize provider outcomes
+      → bounded per-provider timeout
+      → validate provider provenance/identity/title/source-order/result-count contract
+      → keep at most the requested number of strongest distinct provider-local results
       → normalize cross-provider textual relevance
       → prefer healthy source only when normalized relevance ties
       → prefer LOCAL, then MIXED, then REMOTE only when relevance and health tie
@@ -49,10 +45,6 @@ Launcher, Browser, or user
       → AUTHORIZATION_REQUIRED / FAILED / TIMED_OUT / DEGRADED / INVALID_RESULT issues
   → source-aware UI
   → typed validated handoff
-      → app component
-      → contact URI
-      → Android Settings action
-      → Browser web destination
 ```
 
 ## Core Authority Model
@@ -69,13 +61,15 @@ This is a **consumer contract**, not substitute authority. No Identity endpoint 
 
 The engine considers only providers applicable to the current query. This prevents non-browsing private sources from generating unnecessary authority prompts or enumerating data on blank input.
 
-Providers must be independently cancellable, bounded by timeout, and unable to suppress healthy sibling providers through ordinary failure.
+Providers must be independently cancellable, bounded by timeout, and unable to suppress healthy sibling providers through ordinary failure. Providers receive `IndexQuery.maxResults` and are expected not to return more results than requested. The engine independently enforces that boundary: an over-limit response is reported as `INVALID_RESULT`, then reduced to the strongest distinct provider-local results up to the requested limit before cross-provider composition. This prevents a buggy or hostile provider from expanding federation work simply by ignoring the query contract.
 
-The provider-declared `processingLocation` is also available to Index-owned composition after the provider has already passed scope and authority gates. It is not an authorization mechanism: a remote provider must first be eligible and authorized before any ranking tie-break can consider its results.
+Bounding does not trust response order. Index applies the same-provider score/source-order semantics first, preserves the strongest duplicate for each provider-local ID, and only then takes the requested result count. Invalid-result detection still precedes an ordinary `DEGRADED` signal so contract violations remain visible.
+
+The provider-declared `processingLocation` is available to Index-owned composition only after the provider passes scope and authority gates. It is not authorization: a remote provider must first be eligible and authorized before any ranking tie-break can consider its results.
 
 ## Applications Provider
 
-`InstalledAppsProvider` is a local provider using scoped launcher discovery, label/package matching, exact component actions, and no `QUERY_ALL_PACKAGES` requirement.
+`InstalledAppsProvider` is a local provider using scoped launcher discovery, label/package matching, exact component actions, and no `QUERY_ALL_PACKAGES` requirement. It already respects `query.maxResults` before returning results.
 
 ## Contacts Provider
 
@@ -86,13 +80,14 @@ The Contacts provider uses Android ContactsProvider authority through `ContactsC
 - projection limited to contact identity/display fields required by the result;
 - no phone/email field read in the current slice;
 - typed contact-view action;
-- Android permission plus Privacy Shield and Identity authority evidence.
+- Android permission plus Privacy Shield and Identity authority evidence;
+- bounded result collection using the requested result count and the provider's own hard ceiling.
 
 Incomplete or unenforceable authority must prevent provider dispatch.
 
 ## Settings Provider
 
-The Settings provider is a bounded local navigation provider over repository-defined destination metadata. It does not read device setting values or configuration state.
+The Settings provider is a bounded local navigation provider over repository-defined destination metadata. It does not read device setting values or configuration state. It already limits output to the requested result count.
 
 Actions must remain inside the exact reviewed allowlist. Arbitrary Android actions, URLs, data URIs, and extras are not supported by this provider contract.
 
@@ -106,6 +101,7 @@ The Search provider is the remote Internet/current-information provider.
 - local-only mode must not perform capability preflight or search;
 - the initial Search contract uses capability `search.query`, contract version `1`, endpoint `/api/v1/search`;
 - the delegated request is minimized to query, category, and result limit;
+- Search response consumption is independently capped to the authorized/requested limit;
 - returned destinations are revalidated by Index before becoming executable web actions;
 - degraded Search responses may preserve valid results while retaining degraded status.
 
@@ -129,44 +125,38 @@ Invalid executable actions fail closed with sanitized user-visible/provider issu
 
 Index is responsible for cross-provider composition. Provider-local scores are authoritative only inside the provider that produced them; raw score magnitudes are not compared across provider boundaries.
 
-The current Development engine implements an explicit normalization, bounded source-health, and bounded local-first composition layer:
+The current Development engine implements explicit normalization, bounded source health, bounded local-first composition, and bounded provider fan-out:
 
 - cross-provider ordering uses Index-owned normalized textual relevance derived from title and subtitle match quality;
 - exact, prefix, token-prefix, contained-title, and secondary-text matches use one Index-owned scale;
 - a provider with an arbitrarily large private score cannot outrank a stronger textual match from another provider merely because its numeric scale is larger;
 - provider-local scores remain available for ordering results from the same provider;
 - provider `sourceOrdinal` remains a same-provider tie-breaker when provider-local scores tie;
+- provider results are validated, provider-locally ordered, deduplicated by provider-owned result ID, and capped to the requested result count before federation;
+- an over-limit provider response remains visible as `INVALID_RESULT` rather than being silently accepted or relabeled as degradation;
 - when different providers have equal normalized relevance, a healthy source is preferred over a source that explicitly returned `DEGRADED` status;
-- source health is deliberately subordinate to relevance: a stronger match from a degraded provider still outranks a weaker match from a healthy provider;
-- when normalized relevance and health are both equal across providers, processing location is used as a final privacy-preserving tie-breaker: `LOCAL` before `MIXED` before `REMOTE`;
-- processing location is deliberately subordinate to relevance and health: a stronger remote result still outranks a weaker local result, and a healthy remote result can outrank an equally relevant degraded local result;
-- location ranking never makes an ineligible provider eligible and never bypasses `localOnly`, allowlist, Privacy Shield, Identity, or other authority gates;
-- `INVALID_RESULT` keeps its existing issue precedence and is not silently reclassified as ordinary degradation for ranking purposes;
+- source health is subordinate to relevance: a stronger match from a degraded provider still outranks a weaker match from a healthy provider;
+- when normalized relevance and health are equal, processing location is a final privacy-preserving tie-breaker: `LOCAL` before `MIXED` before `REMOTE`;
+- processing location is subordinate to relevance and health: a stronger remote result still outranks a weaker local result, and a healthy remote result can outrank an equally relevant degraded local result;
+- location ranking never makes an ineligible provider eligible and never bypasses `localOnly`, allowlisting, Privacy Shield, Identity, or other authority gates;
 - equal cross-provider normalized relevance, equal health, and equal location fall back to deterministic stable title/provider/id ordering rather than raw provider score;
-- provider-scoped deduplication remains after ranking, so the strongest same-provider duplicate survives without collapsing distinct resources owned by different providers.
+- final provider-scoped deduplication remains as defense in depth without collapsing distinct resources owned by different providers.
 
-This is a bounded baseline, not the final blending model. Future ranking work can add explicit factors such as result type, source confidence, source-owned recency, user-declared source preference, richer capability/health evidence, and privacy cost that is more specific than processing location. Those factors must be Index-owned, explainable, and independently authorized where applicable rather than inferred from incomparable provider score scales.
+This is a bounded baseline, not the final blending model. Future ranking work can add explicit factors such as result type, source confidence, source-owned recency, user-declared source preference, richer capability/health evidence, and privacy cost more specific than processing location. Those factors must remain Index-owned, explainable, and independently authorized where applicable rather than inferred from incomparable provider score scales.
 
 ## Cancellation and Performance
 
 Interactive search must cancel superseded work. Parent cancellation propagates to providers and must not be converted into ordinary failure.
 
-Provider timeouts remain bounded. Healthy sibling results survive a provider timeout or failure.
+Provider timeouts remain bounded. Healthy sibling results survive a provider timeout or failure. Provider fan-out into federation is now bounded by the current query result limit after local validation/ranking/deduplication, reducing unnecessary cross-provider sorting and result retention when a provider violates its requested limit.
 
-Future optimization should favor incremental result delivery and stable result ordering without allowing late remote results to cause excessive UI churn.
+Future optimization should favor incremental result delivery and stable result ordering without allowing late remote results to cause excessive UI churn. A future bounded-selection implementation may reduce provider-local sorting cost further if evidence shows that result-volume pressure justifies the additional complexity.
 
 ## UI Architecture
 
 Index UI must remain source-aware and expose meaningful provider health/authority states without disclosing sensitive internal evidence.
 
-The UI should distinguish:
-
-- authorization required;
-- failed provider;
-- timed out provider;
-- degraded provider;
-- invalid/blocked result;
-- no results.
+The UI should distinguish authorization required, failed provider, timed out provider, degraded provider, invalid/bounded provider output, and no results. `INVALID_RESULT` user-facing text intentionally covers provenance/required-field/source-order failures and requested-result-limit violations without exposing sensitive internal payloads.
 
 ## Glaze UI
 
@@ -182,6 +172,8 @@ Index is migration-required until Index-owned surfaces and native mappings have 
 - Provider exception → sanitized `FAILED`; healthy sibling results preserved.
 - Provider timeout → sanitized `TIMED_OUT`; healthy sibling results preserved.
 - Provider degraded response → valid results may survive with `DEGRADED` status and health-aware equal-relevance composition.
+- Provider returns more results than requested → strongest distinct bounded results may survive, but the provider is reported as `INVALID_RESULT`.
+- Provider returns invalid provenance/required fields/source order → invalid entries are removed and `INVALID_RESULT` remains visible.
 - Equal relevance and health across different processing locations → prefer local execution without overriding a stronger remote result.
 - Parent/query cancellation → propagates.
 - Disallowed provider → not dispatched.
