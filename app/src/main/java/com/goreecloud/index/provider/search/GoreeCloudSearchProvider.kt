@@ -73,7 +73,15 @@ data class GoreeCloudSearchResult(
     val snippet: String? = null,
     /** Search-owned score is transport metadata; Index does not compare it with local-provider scores. */
     val searchScore: Int = 0,
-)
+) {
+    override fun toString(): String =
+        "GoreeCloudSearchResult(" +
+            "title=<redacted>, " +
+            "url=<redacted>, " +
+            "snippet=${if (snippet == null) "null" else "<redacted>"}, " +
+            "searchScore=$searchScore" +
+            ")"
+}
 
 data class GoreeCloudSearchResponse(
     val apiVersion: String,
@@ -81,7 +89,16 @@ data class GoreeCloudSearchResponse(
     val category: String,
     val results: List<GoreeCloudSearchResult>,
     val degraded: Boolean = false,
-)
+) {
+    override fun toString(): String =
+        "GoreeCloudSearchResponse(" +
+            "apiVersion=$apiVersion, " +
+            "query=<redacted>, " +
+            "category=$category, " +
+            "resultCount=${results.size}, " +
+            "degraded=$degraded" +
+            ")"
+}
 
 data class GoreeCloudSearchCapability(
     val id: String,
