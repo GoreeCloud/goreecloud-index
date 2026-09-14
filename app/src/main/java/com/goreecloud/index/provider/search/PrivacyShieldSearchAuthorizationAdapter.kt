@@ -3,6 +3,7 @@ package com.goreecloud.index.provider.search
 import java.time.Instant
 
 internal const val PRIVACY_SHIELD_SEARCH_REQUIRED_OUTCOME = "ALLOW_WITH_CONSTRAINTS"
+internal const val PRIVACY_SHIELD_SEARCH_CAPABILITY_REFERENCE_MAX_LENGTH = 512
 internal val PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS: Set<String> = setOf(
     "record_privacy_evidence",
     "generate_privacy_receipt",
@@ -73,8 +74,16 @@ class PrivacyShieldSearchAuthorizationAdapter(
             }
         }
         val capabilityReference = decision.capabilityTokenReference?.trim()
-        check(capabilityReference != null && capabilityReference.startsWith("psc_") && capabilityReference.length > 4) {
+        check(isCanonicalPrivacyShieldCapabilityReference(capabilityReference)) {
             "Privacy Shield Search decision is missing a canonical capability-token reference"
+        }
+    }
+
+    private fun isCanonicalPrivacyShieldCapabilityReference(reference: String?): Boolean {
+        if (reference == null || !reference.startsWith("psc_") || reference.length <= 4) return false
+        if (reference.length > PRIVACY_SHIELD_SEARCH_CAPABILITY_REFERENCE_MAX_LENGTH) return false
+        return reference.none { character ->
+            character.isWhitespace() || Character.isISOControl(character.code)
         }
     }
 }
