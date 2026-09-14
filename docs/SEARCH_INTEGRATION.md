@@ -7,6 +7,8 @@
 
 GoreeCloud Index is the universal search/indexing coordinator. GoreeCloud Search remains authoritative for Internet, web, and current-information search. Index may federate Search results into a universal result set, but it must not duplicate Search provider orchestration or convert Search into a local source.
 
+Privacy Shield remains authoritative for remote-processing authorization, capability-reference validity, expiry/revocation/replay state, and required privacy obligations.
+
 ## Eligibility
 
 The Search provider is eligible only when all of the following are true:
@@ -27,13 +29,18 @@ Capability discovery is expected from `/api/v1/status` under the `capability_evi
 
 Current Search capability evidence may advertise `POST` and `GET`, with `POST` preferred for first-party consumers. The preferred production query transport is `json_body`, with `application/json` request/response media types, an explicit Privacy Shield authorization requirement, a 16 KiB request ceiling, and a bounded result maximum.
 
-Production capability evidence must additionally identify authorization scheme `privacy_shield_capability_token_reference`, header `X-GoreeCloud-Privacy-Capability`, and accepted server-side enforcement state `required`.
+Production capability evidence must additionally identify:
+
+- authorization scheme `privacy_shield_capability_token_reference`;
+- authorization header `X-GoreeCloud-Privacy-Capability`;
+- accepted server-side enforcement state `required`;
+- `authenticated_requester_required=true`.
 
 The current Search Development service advertises `privacy_authorization_enforcement=not_enforced_development`; Index must reject that evidence in Production mode even if the service is reachable.
 
 Development Index builds may consume explicitly non-production or legacy-GET capability evidence only when the build is itself Development and the exception is recorded in repository-local evidence.
 
-Stable/production Index builds must require Search capability evidence that is explicitly production accepted **and** matches the complete private transport contract. A merely reachable endpoint, GET-compatible capability, or consumer-side Privacy Shield decision without server enforcement is insufficient.
+Stable/production Index builds must require Search capability evidence that is explicitly production accepted **and** matches the complete private transport contract. A merely reachable endpoint, GET-compatible capability, consumer-side Privacy Shield decision without server enforcement, or server contract without authenticated requester identity is insufficient.
 
 A Development exception must never be interpreted as permission to promote Index or Search to Stable.
 
@@ -52,11 +59,37 @@ Index creates a unique Privacy Shield `request_id` before each production Search
 - retention mode `none`;
 - `external_disclosure=false` for the Index-to-first-party-Search boundary.
 
-The `PrivacyShieldSearchAuthorizationAdapter` validates the canonical Privacy Shield decision response. The decision must echo the same `request_id`; evidence for a different request fails closed even if the remaining authorization fields appear compatible. It additionally accepts only an unconstrained `ALLOW` that permits the exact operation, zone, destination, and retention mode, contains no obligations Index cannot enforce, remains unexpired, and returns a non-empty `capability_token_reference`.
+The `PrivacyShieldSearchAuthorizationAdapter` validates the canonical Privacy Shield decision response. The decision must echo the same `request_id`; evidence for a different request fails closed even if the remaining authorization fields appear compatible.
 
-`ALLOW_WITH_CONSTRAINTS` remains fail-closed until Index has explicit enforcement for every returned obligation.
+For private GoreeCloud Search processing, Privacy Shield intentionally returns `ALLOW_WITH_CONSTRAINTS`. Index accepts only that exact outcome and the exact supported obligation set:
 
-Only the capability-token reference is carried into `GoreeCloudSearchRequest`. Raw policy documents, decision payloads, local result sets, and unrelated authority evidence do not cross the Search boundary.
+- `record_privacy_evidence`;
+- `generate_privacy_receipt`;
+- `enforce_processing_zone`.
+
+The decision must additionally permit the exact operation, zone, destination, and retention mode, remain unexpired, and return a canonical `psc_*` capability reference. An unconditional `ALLOW`, any different constrained outcome, or any missing/additional obligation fails closed.
+
+The provider performs a final canonical-reference check even after the authorization adapter. Surrounding whitespace is normalized, but non-`psc_*` or whitespace-bearing references are rejected before the Search client is called.
+
+Index acquires fresh Privacy Shield authorization for each production Search query. A prior capability reference is not cached or treated as provider/application state.
+
+Only the opaque capability reference is carried into `GoreeCloudSearchRequest`. Raw signed capability tokens, Privacy Shield signing keys, policy documents, decision payloads, local result sets, and unrelated authority evidence do not cross the Search boundary.
+
+## Search-side reference verification
+
+Production Index must not assume that carrying a capability reference means Search will enforce it. Search must advertise and prove server-side reference enforcement and authenticated requester identity.
+
+Search's planned authority call uses Privacy Shield's version-1 capability-reference verification contract defined by:
+
+```text
+contracts/privacy-shield.capability-reference-verification.schema.json
+```
+
+Search authenticates as verification consumer `goreecloud-search` while separately binding the original requester identity `goreecloud-index`. Those identities are not interchangeable.
+
+The verifier request contains only the v1 contract version, opaque reference, exact expected requester/resource/purpose/operation/processing-zone/destination/retention claims, and `consume=true` for the one Search execution. Privacy Shield remains authoritative for signed-token validation, expiry, revocation, replay policy, and single-use consumption.
+
+Search must derive the original Index requester identity from an authenticated runtime/transport boundary rather than trusting arbitrary request data. Privacy Shield must likewise derive Search's verification-consumer identity from the authenticated verification transport.
 
 ## Minimized request
 
@@ -65,11 +98,11 @@ Index delegates only:
 - the normalized query string;
 - the selected Search category;
 - a bounded result limit;
-- for accepted production delegation, the minimum Privacy Shield capability-token reference required by the Search authorization transport.
+- for accepted production delegation, the minimum opaque Privacy Shield capability reference required by the Search authorization transport.
 
-Index must not send installed apps, contacts, files, calendar items, local result sets, device inventory, Identity identifiers, or unrelated authorization evidence payloads to Search.
+Index must not send installed apps, contacts, files, calendar items, local result sets, device inventory, Identity identifiers, raw signed Privacy Shield tokens, or unrelated authorization evidence payloads to Search.
 
-The preferred production request representation is a bounded `application/json` POST body. Query text must not be duplicated into the request URL when the POST transport is used. The capability-token reference belongs in the separately advertised authorization header rather than the JSON query body.
+The preferred production request representation is a bounded `application/json` POST body. Query text must not be duplicated into the request URL when the POST transport is used. The capability reference belongs in the separately advertised authorization header rather than the JSON query body.
 
 ## Result handling
 
@@ -97,4 +130,4 @@ Index-owned search surfaces must use the latest approved Stable Glaze UI release
 
 ## Stability boundary
 
-The existence of the Search provider and Privacy Shield decision adapters is source integration evidence only. Stable acceptance requires current Search capability evidence, real Privacy Shield decision acquisition with request correlation, Search-side capability-token enforcement, supported runtime behavior, accessibility, degradation handling, cancellation behavior, and representative real-device validation.
+The existence of the Search provider and Privacy Shield decision adapters is source integration evidence only. Stable acceptance requires current Search capability evidence, real Privacy Shield decision acquisition with request correlation and exact constrained-obligation handling, a versioned authenticated Search-side capability-reference verification transport, authenticated requester identity, supported runtime behavior, accessibility, degradation handling, cancellation behavior, and representative real-device validation.
