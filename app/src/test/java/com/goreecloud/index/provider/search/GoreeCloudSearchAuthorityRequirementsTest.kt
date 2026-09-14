@@ -18,8 +18,8 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class GoreeCloudSearchAuthorityRequirementsTest {
     @Test
-    fun searchProviderRequiresPrivacyShieldAndIdentityAuthority() {
-        val provider = provider()
+    fun productionSearchProviderRequiresPrivacyShieldAndIdentityAuthority() {
+        val provider = productionProvider()
 
         assertEquals(
             setOf(
@@ -31,11 +31,11 @@ class GoreeCloudSearchAuthorityRequirementsTest {
     }
 
     @Test
-    fun privacyShieldWithoutIdentityFailsClosedBeforeCapabilityPreflight() = runTest {
+    fun privacyShieldWithoutIdentityFailsProductionClosedBeforeCapabilityPreflight() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         var capabilityCalls = 0
         var searchCalls = 0
-        val provider = provider(
+        val provider = productionProvider(
             onCapability = { capabilityCalls++ },
             onSearch = { searchCalls++ },
         )
@@ -61,7 +61,7 @@ class GoreeCloudSearchAuthorityRequirementsTest {
         assertEquals(GoreeCloudIndexContract.PROVIDER_SEARCH, snapshot.providerIssues.single().providerId)
     }
 
-    private fun provider(
+    private fun productionProvider(
         onCapability: () -> Unit = {},
         onSearch: () -> Unit = {},
     ): GoreeCloudSearchProvider = GoreeCloudSearchProvider(
@@ -86,6 +86,7 @@ class GoreeCloudSearchAuthorityRequirementsTest {
                 productionAccepted = false,
             )
         },
+        acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
     )
 
     private fun allowedEvidence(reference: String): IndexAuthorityEvidence = IndexAuthorityEvidence(
