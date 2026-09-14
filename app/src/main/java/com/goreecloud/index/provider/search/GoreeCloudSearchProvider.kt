@@ -91,6 +91,7 @@ data class GoreeCloudSearchCapability(
     val privacyAuthorizationScheme: String? = null,
     val privacyAuthorizationHeader: String? = null,
     val privacyAuthorizationEnforcement: String? = null,
+    val authenticatedRequesterRequired: Boolean = false,
     val maxRequestBytes: Int = 0,
 )
 
@@ -254,9 +255,10 @@ class GoreeCloudSearchProvider(
                 capability.privacyAuthorizationRequired &&
                     capability.privacyAuthorizationScheme == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME &&
                     capability.privacyAuthorizationHeader == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER &&
-                    capability.privacyAuthorizationEnforcement == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT
+                    capability.privacyAuthorizationEnforcement == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT &&
+                    capability.authenticatedRequesterRequired
             ) {
-                "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization transport"
+                "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization and authenticated requester transport"
             }
         }
         check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
