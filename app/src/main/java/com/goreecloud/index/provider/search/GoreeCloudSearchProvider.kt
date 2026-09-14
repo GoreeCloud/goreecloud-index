@@ -57,6 +57,11 @@ data class GoreeCloudSearchCapability(
     val productionAccepted: Boolean,
 )
 
+enum class GoreeCloudSearchAcceptanceMode {
+    DEVELOPMENT,
+    PRODUCTION,
+}
+
 fun interface GoreeCloudSearchClient {
     suspend fun search(request: GoreeCloudSearchRequest): GoreeCloudSearchResponse
 }
@@ -68,6 +73,7 @@ fun interface GoreeCloudSearchCapabilityClient {
 class GoreeCloudSearchProvider(
     private val client: GoreeCloudSearchClient,
     private val capabilityClient: GoreeCloudSearchCapabilityClient,
+    private val acceptanceMode: GoreeCloudSearchAcceptanceMode = GoreeCloudSearchAcceptanceMode.DEVELOPMENT,
 ) : IndexStatusAwareProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_SEARCH
     override val displayName: String = "GoreeCloud Search"
@@ -124,6 +130,11 @@ class GoreeCloudSearchProvider(
         }
         check(capability.authoritative && capability.current) {
             "GoreeCloud Search query capability is not current and authoritative"
+        }
+        if (acceptanceMode == GoreeCloudSearchAcceptanceMode.PRODUCTION) {
+            check(capability.productionAccepted) {
+                "GoreeCloud Search query capability is not production accepted"
+            }
         }
         check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
             "GoreeCloud Search query endpoint is incompatible"
