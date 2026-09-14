@@ -4,7 +4,7 @@
 
 **Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` provider/authority work remains branch source until normal merge acceptance completes.
 
-The latest verified implementation checkpoint is `36056e4640e9c083fadbcabc0b0fa05d40615070`. Platform Contract #36 and Android Index foundation validation #163 passed on that exact revision.
+The latest verified implementation checkpoint is `b201e182d0698bee55f19e37e46f9d42f419c638`. Platform Contract #47 and Android Index foundation validation #174 passed on that exact revision.
 
 ## Native Implementation
 
@@ -47,7 +47,8 @@ The latest verified implementation checkpoint is `36056e4640e9c083fadbcabc0b0fa0
 - [x] A late stronger result can deterministically re-rank ahead of earlier weaker results without giving completion order ranking authority.
 - [x] One-shot `search()` consumes the last incremental snapshot instead of maintaining a second composition path.
 - [x] Cancelling incremental collection cancels outstanding provider work and does not manufacture provider failures.
-- [x] Repository guard now requires the incremental Flow/launch/composition/UI wiring and the dedicated incremental regression suite.
+- [x] Repository guard requires the incremental Flow/launch/composition/UI wiring and the dedicated incremental regression suite.
+- [x] Session source changes participate in the same Compose query lifecycle, replacing collection and cancelling superseded provider work.
 - [ ] Intent-aware/result-type/source-confidence/richer-health/privacy-cost blending beyond the current textual + degraded-state + local-first baseline.
 - [ ] Representative-device incremental-rendering/perceived-latency acceptance.
 - [ ] Bounded update coalescing if measured provider counts/completion cadence produce excessive UI churn.
@@ -69,6 +70,34 @@ Dedicated source regressions verify:
 
 These are source/build checks. They do not establish representative-device UI smoothness, performance targets, accessibility acceptance, production Search transport, or Stable qualification.
 
+## Source Controls and Processing Disclosure
+
+Exact implementation checkpoint `b201e182d0698bee55f19e37e46f9d42f419c638` passed Android Index foundation validation #174 and Platform Contract #47.
+
+- [x] Development UI exposes session-scoped enable/disable switches for the currently integrated Applications, Settings, and Contacts providers.
+- [x] Source selections are held only in the current Compose session and are not written to durable storage.
+- [x] `IndexDevelopmentSourcePolicy` is the centralized selectable-source boundary rather than duplicating provider lists in the activity.
+- [x] Requested provider IDs are intersected with the reviewed selectable set, so unknown providers cannot become eligible through UI state.
+- [x] GoreeCloud Search is not part of the Development selectable-provider set and cannot be enabled through these controls.
+- [x] Source-controlled execution forces `localOnly=true` independently of UI presentation.
+- [x] Existing provider authority evidence is preserved when constructing the execution context, but source selection never grants missing authority.
+- [x] Contacts remains fail-closed when Android permission, Privacy Shield, or GoreeCloud Identity authority is incomplete even when the user-selected source toggle is on.
+- [x] UI explicitly discloses that source changes apply only to the current Index session and do not grant permissions or platform authority.
+- [x] UI explicitly discloses that Internet/Web results remain unavailable and that Index will not silently enable GoreeCloud Search or another remote provider when a local source is disabled, unavailable, or unauthorized.
+- [x] Empty-state behavior distinguishes an intentionally empty source selection from an ordinary no-results state.
+- [x] Repository and Settings-provider guards validate the centralized source-policy boundary instead of requiring duplicated provider constants in `MainActivity`.
+- [x] Dedicated regressions verify only integrated local providers are selectable, local-only execution is always enforced, remote Search/unknown providers are rejected, and existing authority evidence survives source-policy projection without broadening scope.
+- [ ] Durable provider preference storage and migration.
+- [ ] Everkeep continuity/recovery semantics for any future durable provider preferences.
+- [ ] Profile/device scoping for future durable source preferences.
+- [ ] Permission-review/action workflows that can guide the user to authoritative Android/Privacy Shield/Identity decisions without manufacturing those decisions locally.
+- [ ] Internet-provider preference after accepted requester/service authentication and real Privacy Shield runtime authorization exist.
+- [ ] Third-party provider connection/revocation controls, if approved.
+- [ ] Search-history controls if durable history is ever implemented.
+- [ ] Index/cache clearing controls when a reconstructible local index/cache exists.
+
+The current controls are **selection controls, not authority controls**. Enabling a source only permits Index to consider it; scope, provider contract, Android permission, Privacy Shield, GoreeCloud Identity, local-only mode, and other authority checks remain independent gates.
+
 ## Authority Model
 
 - [x] Android runtime permission is distinct from Privacy Shield and Identity authority.
@@ -76,6 +105,7 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE` fail closed.
 - [x] Missing authority prevents provider dispatch.
 - [x] Static compatibility/authorization issues are computed before incremental provider launch and can be exposed in the initial snapshot.
+- [x] User source selection does not bypass scope, contract, or authority evaluation.
 - [x] Internal execution context is not described as platform authorization.
 - [x] Branch source: remote GoreeCloud Search uses a separate operation-scoped Privacy Shield authorization adapter and canonical `psc_*` capability-reference boundary.
 - [ ] Accepted Privacy Shield runtime adapter/decision-acquisition transport.
@@ -91,6 +121,7 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] Local processing and 500 ms provisional timeout.
 - [x] Exact launcher-component action.
 - [x] Honors the requested result limit before returning results.
+- [x] May be disabled for the current Index session without changing Android package visibility or provider authority.
 - [ ] Representative-device performance acceptance.
 
 ## Contacts Provider — Branch Source
@@ -100,7 +131,7 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] `LOCAL` processing.
 - [x] 750 ms provisional timeout.
 - [x] No blank-query enumeration.
-- [x] Filtered Contacts URI query path.
+- [x] Filtered lookup through `Contacts.CONTENT_FILTER_URI`.
 - [x] Projection limited to ID, lookup key, and display name.
 - [x] No phone/email field reads in this provider slice.
 - [x] Typed contact-view result action.
@@ -108,6 +139,7 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] Android + Privacy Shield + Identity requirements declared.
 - [x] Bounded result collection respects the caller-requested result count and provider hard ceiling.
 - [x] Current runtime keeps unavailable authority fail-closed, so protected Contacts dispatch is not fabricated.
+- [x] Session source selection can exclude Contacts before authority evaluation, but enabling it does not satisfy any missing authority requirement.
 - [ ] Accepted Contacts runtime enablement.
 - [ ] Explicit user opt-in and Android permission grant flow.
 - [ ] Representative-device cancellation/timeout/action acceptance.
@@ -118,12 +150,13 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] Historical `1.1.0` and `2.1.0` values are treated as superseded implementation history, not current release authority.
 - [x] Search-first interaction and visible source/authority state remain explicit.
 - [x] Authorization-required state remains distinct from operational failure/timeout.
-- [x] Compose source now consumes incremental `IndexSearchSnapshot` Flow updates while preserving the same issue/result surface.
+- [x] Compose source consumes incremental `IndexSearchSnapshot` Flow updates while preserving the same issue/result surface.
+- [x] Compose source exposes clearly labeled source controls and local-only/remote-unavailable disclosure without presenting source selection as authorization.
 - [x] Safe-drawing insets, bounded targets, semantic headings, and non-animated progress remain represented in the Development source line.
 - [ ] Repository-local rendered/native V1.4 visual acceptance.
 - [ ] Reduced Transparency / Increased Contrast / Reduced Motion / large-text acceptance.
 - [ ] Localization/RTL acceptance.
-- [ ] Representative phone/tablet/form-factor and performance acceptance, including incremental result-update behavior.
+- [ ] Representative phone/tablet/form-factor and performance acceptance, including incremental result-update and source-control behavior.
 - [ ] Formal application-specific V1.4 conformance and production acceptance.
 
 ## Privacy Shield
@@ -131,16 +164,18 @@ These are source/build checks. They do not establish representative-device UI sm
 - [x] No silent remote fallback.
 - [x] Local providers declare local processing where applicable.
 - [x] No intentional persistent search history or query analytics.
-- [x] Incremental snapshots retain only current in-memory query results/issues and do not create a persistent history mechanism.
+- [x] Incremental snapshots and session source-selection state remain in-memory and do not create a persistent history/preferences mechanism.
 - [x] Branch source consumes decision outcome/reference separately from Android permission.
 - [x] Branch source uses a bounded operation-scoped capability-reference contract for production Search delegation preparation.
+- [x] Source selection is explicitly not treated as Privacy Shield consent or authorization.
 - [ ] Real Privacy Shield request/response decision-acquisition adapter and accepted runtime evidence.
-- [ ] Provider controls and retained-decision lifecycle where applicable.
+- [ ] Retained-decision lifecycle where applicable.
 
 ## GoreeCloud Identity
 
 - [x] Authentication is not treated as blanket authorization.
 - [x] Branch source requires independent Identity authorization evidence for protected local providers where declared.
+- [x] Source selection does not create or substitute Identity authorization evidence.
 - [ ] Actual Identity authorization adapter/API acceptance.
 - [ ] Authenticated requester/service identity for protected remote-provider transport.
 - [ ] User/profile/caller isolation acceptance.
@@ -148,16 +183,16 @@ These are source/build checks. They do not establish representative-device UI sm
 ## Wardveil Security, Everkeep, and Mesh
 
 - [x] No Wardveil trust/protection claim inferred from provider success.
-- [x] Current query state remains transient.
+- [x] Current query state and session source-selection state remain transient.
 - [ ] Wardveil provider/action security evidence integration.
-- [ ] Everkeep continuity for applicable durable settings/configuration.
+- [ ] Everkeep continuity for applicable durable settings/configuration, including any future persistent provider preferences.
 - [ ] Mesh provider discovery/coordination integration.
 
 ## GoreeCloud Sync
 
 GoreeCloud Sync is a separate application/service capability, not one of the seven Integral Platform Systems.
 
-- [x] Transient query text, incremental snapshots, and search history are not designated as Sync datasets.
+- [x] Transient query text, incremental snapshots, current session source selection, and search history are not designated as Sync datasets.
 - [x] The Platform Contract manifest does not misclassify Sync as a `platform_systems` member.
 - [ ] Define explicit GoreeCloud Sync dataset contracts only for future approved durable Index state where synchronization is genuinely applicable.
 - [ ] Complete runtime registration, authorization, reconciliation, conflict/deletion behavior, privacy review, and cross-device acceptance before claiming synchronized Index state.
