@@ -36,11 +36,9 @@ class IndexSourceControlsTest {
     @Test
     fun developmentSourcePolicyPreservesAuthorityEvidenceWithoutGrantingNewScope() {
         val contactsAuthority = IndexProviderAuthority(
-            evidence = mapOf(
-                IndexAuthorityRequirement.PRIVACY_SHIELD to IndexAuthorityEvidence(
-                    outcome = IndexAuthorityOutcome.ALLOW,
-                    reference = "privacy-reference",
-                ),
+            privacyShield = IndexAuthorityEvidence(
+                outcome = IndexAuthorityOutcome.ALLOW,
+                reference = "privacy-reference",
             ),
         )
 
