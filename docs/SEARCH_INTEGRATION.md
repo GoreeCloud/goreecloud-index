@@ -41,14 +41,18 @@ A Development exception must never be interpreted as permission to promote Index
 
 The higher-level Index execution context still requires Privacy Shield authority before the remote provider becomes eligible. Production Search delegation adds a second provider-local boundary so bypassing the query coordinator cannot silently bypass authorization.
 
-Before a production Search client call, Index requests authorization for:
+Index creates a unique Privacy Shield `request_id` before each production Search authorization attempt. The canonical request identifies:
 
+- requester `goreecloud-index` with requester type `application`;
+- resource `goreecloud.search.query` classified as `query_text`;
 - operation `search.query`;
+- purpose `internet_search`;
 - processing zone `private_goreecloud`;
 - destination `https://search.goreecloud.com`;
-- retention mode `none`.
+- retention mode `none`;
+- `external_disclosure=false` for the Index-to-first-party-Search boundary.
 
-The `PrivacyShieldSearchAuthorizationAdapter` validates the canonical Privacy Shield decision response. It accepts only an unconstrained `ALLOW` that permits the exact operation, zone, destination, and retention mode, contains no obligations Index cannot enforce, remains unexpired, and returns a non-empty `capability_token_reference`.
+The `PrivacyShieldSearchAuthorizationAdapter` validates the canonical Privacy Shield decision response. The decision must echo the same `request_id`; evidence for a different request fails closed even if the remaining authorization fields appear compatible. It additionally accepts only an unconstrained `ALLOW` that permits the exact operation, zone, destination, and retention mode, contains no obligations Index cannot enforce, remains unexpired, and returns a non-empty `capability_token_reference`.
 
 `ALLOW_WITH_CONSTRAINTS` remains fail-closed until Index has explicit enforcement for every returned obligation.
 
@@ -81,7 +85,7 @@ When Search reports partial degradation, Index may preserve valid results while 
 
 ## Cancellation
 
-Superseded user queries must cancel previous Search delegation through the Index query lifecycle. Cancellation is not a provider failure.
+Superseded user queries must cancel previous Search delegation through the Index query lifecycle. Cancellation is not a provider failure and must not be rewritten as degraded Search availability. The Search service contract independently preserves the same distinction between caller cancellation and its own provider timeout boundary.
 
 ## Browser handoff
 
@@ -93,4 +97,4 @@ Index-owned search surfaces must use the latest approved Stable Glaze UI release
 
 ## Stability boundary
 
-The existence of the Search provider and Privacy Shield decision adapters is source integration evidence only. Stable acceptance requires current Search capability evidence, real Privacy Shield decision acquisition, Search-side capability-token enforcement, supported runtime behavior, accessibility, degradation handling, cancellation behavior, and representative real-device validation.
+The existence of the Search provider and Privacy Shield decision adapters is source integration evidence only. Stable acceptance requires current Search capability evidence, real Privacy Shield decision acquisition with request correlation, Search-side capability-token enforcement, supported runtime behavior, accessibility, degradation handling, cancellation behavior, and representative real-device validation.
