@@ -189,21 +189,15 @@ class GoreeCloudSearchProvider(
             "GoreeCloud Search response category does not match the delegated category"
         }
 
-        val acceptedResults = mutableListOf<IndexResult>()
-        var rejectedUnsafeResult = false
-        for ((sourceOrdinal, result) in response.results.withIndex()) {
-            if (acceptedResults.size >= limit) break
-            val indexResult = result.toIndexResult(normalizedQuery, sourceOrdinal)
-            if (indexResult == null) {
-                rejectedUnsafeResult = true
-                continue
-            }
-            acceptedResults += indexResult
-        }
-
         return IndexProviderResponse(
-            results = acceptedResults,
-            degraded = response.degraded || rejectedUnsafeResult,
+            results = response.results
+                .asSequence()
+                .take(limit)
+                .mapIndexed { sourceOrdinal, result ->
+                    result.toIndexResult(normalizedQuery, sourceOrdinal)
+                }
+                .toList(),
+            degraded = response.degraded,
         )
     }
 
@@ -279,8 +273,8 @@ class GoreeCloudSearchProvider(
     private fun GoreeCloudSearchResult.toIndexResult(
         query: String,
         sourceOrdinal: Int,
-    ): IndexResult? {
-        val normalizedURL = normalizeWebURL(url) ?: return null
+    ): IndexResult {
+        val normalizedURL = normalizeWebURL(url)
         val normalizedTitle = title.trim()
         val normalizedSnippet = snippet?.trim()?.takeIf(String::isNotEmpty)
         val localScore = IndexTextMatcher.score(
@@ -290,13 +284,13 @@ class GoreeCloudSearchProvider(
         ) ?: 0
 
         return IndexResult(
-            id = normalizedURL,
+            id = normalizedURL.orEmpty(),
             providerId = providerId,
             type = IndexResultType.WEB,
             title = normalizedTitle,
             subtitle = normalizedSnippet,
             score = localScore,
-            action = IndexAction.OpenWeb(normalizedURL),
+            action = normalizedURL?.let(IndexAction::OpenWeb),
             sourceOrdinal = sourceOrdinal,
         )
     }
