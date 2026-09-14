@@ -6,8 +6,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
 
@@ -185,32 +188,91 @@ class IndexQueryEngine(
         rawQuery: String,
         executionContext: IndexExecutionContext,
         maxResults: Int = 50,
-    ): IndexSearchSnapshot = supervisorScope {
-        val query = IndexQuery(
-            text = IndexQueryNormalizer.normalize(rawQuery),
-            maxResults = maxResults.coerceIn(1, MAX_RESULTS),
-        )
+    ): IndexSearchSnapshot = searchIncrementally(
+        rawQuery = rawQuery,
+        executionContext = executionContext,
+        maxResults = maxResults,
+    ).last()
 
-        val applicableProviders = providers.filter { provider ->
-            query.text.isNotEmpty() || provider.supportsEmptyQuery
-        }
-        val scopedProviders = applicableProviders.filter(executionContext::isInScope)
-        val compatibilityIssues = scopedProviders.mapNotNull(::compatibilityIssue)
-        val compatibleProviders = scopedProviders.filter(::isCompatibleProvider)
-        val authorizationIssues = compatibleProviders
-            .mapNotNull(executionContext::authorizationIssue)
+    /**
+     * Emits an initial authority/compatibility snapshot and then a newly
+     * composed snapshot each time one eligible provider completes. Provider
+     * completion timing controls when an update is available, but never how
+     * accumulated results are ranked: every emission is rebuilt through the
+     * same deterministic relevance, health, processing-location, identity,
+     * validation, fan-out, and deduplication rules used by the final result.
+     *
+     * Cancelling collection cancels this supervisor scope and therefore all
+     * outstanding provider jobs. Provider cancellation remains cancellation;
+     * it is not converted into a provider failure or timeout issue.
+     */
+    fun searchIncrementally(
+        rawQuery: String,
+        executionContext: IndexExecutionContext,
+        maxResults: Int = 50,
+    ): Flow<IndexSearchSnapshot> = flow {
+        supervisorScope {
+            val query = IndexQuery(
+                text = IndexQueryNormalizer.normalize(rawQuery),
+                maxResults = maxResults.coerceIn(1, MAX_RESULTS),
+            )
 
-        val outcomes = compatibleProviders
-            .asSequence()
-            .filter(executionContext::allows)
-            .map { provider ->
-                async(providerDispatcher) {
-                    queryProvider(provider, query)
-                }
+            val applicableProviders = providers.filter { provider ->
+                query.text.isNotEmpty() || provider.supportsEmptyQuery
             }
-            .toList()
-            .awaitAll()
+            val scopedProviders = applicableProviders.filter(executionContext::isInScope)
+            val compatibilityIssues = scopedProviders.mapNotNull(::compatibilityIssue)
+            val compatibleProviders = scopedProviders.filter(::isCompatibleProvider)
+            val authorizationIssues = compatibleProviders
+                .mapNotNull(executionContext::authorizationIssue)
+            val eligibleProviders = compatibleProviders.filter(executionContext::allows)
+            val completedOutcomes = MutableList<IndexProviderOutcome?>(eligibleProviders.size) { null }
 
+            emit(
+                composeSnapshot(
+                    query = query,
+                    compatibilityIssues = compatibilityIssues,
+                    authorizationIssues = authorizationIssues,
+                    outcomes = emptyList(),
+                ),
+            )
+
+            if (eligibleProviders.isEmpty()) {
+                return@supervisorScope
+            }
+
+            val completions = Channel<Pair<Int, IndexProviderOutcome>>(eligibleProviders.size)
+            try {
+                eligibleProviders.forEachIndexed { position, provider ->
+                    launch(providerDispatcher) {
+                        completions.send(position to queryProvider(provider, query))
+                    }
+                }
+
+                repeat(eligibleProviders.size) {
+                    val (position, outcome) = completions.receive()
+                    completedOutcomes[position] = outcome
+                    emit(
+                        composeSnapshot(
+                            query = query,
+                            compatibilityIssues = compatibilityIssues,
+                            authorizationIssues = authorizationIssues,
+                            outcomes = completedOutcomes.filterNotNull(),
+                        ),
+                    )
+                }
+            } finally {
+                completions.close()
+            }
+        }
+    }
+
+    private fun composeSnapshot(
+        query: IndexQuery,
+        compatibilityIssues: List<IndexProviderIssue>,
+        authorizationIssues: List<IndexProviderIssue>,
+        outcomes: List<IndexProviderOutcome>,
+    ): IndexSearchSnapshot {
         val ranking = Comparator<RankedIndexResult> { left, right ->
             if (left.result.providerId == right.result.providerId) {
                 compareSameProviderResults(left, right)
@@ -253,7 +315,7 @@ class IndexQueryEngine(
             .take(query.maxResults)
             .toList()
 
-        IndexSearchSnapshot(
+        return IndexSearchSnapshot(
             results = results,
             providerIssues = (
                 compatibilityIssues +
