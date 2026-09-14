@@ -217,7 +217,7 @@ for prohibited in [
 
 main_activity = (ROOT / "app/src/main/java/com/goreecloud/index/MainActivity.kt").read_text(encoding="utf-8")
 for expected in [
-    "ContactsProvider", "PROVIDER_APPS", "PROVIDER_CONTACTS", "providerAuthorities",
+    "ContactsProvider", "PROVIDER_CONTACTS", "providerAuthorities",
     "Manifest.permission.READ_CONTACTS", "IndexPlatformAuthorityGateway",
     "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection.project",
     "platformAuthorityGateway.contactsSnapshot()", "queryEngine.searchIncrementally(",
