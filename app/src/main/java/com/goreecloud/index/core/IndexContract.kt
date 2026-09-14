@@ -171,6 +171,7 @@ private data class IndexProviderOutcome(
 private data class RankedIndexResult(
     val result: IndexResult,
     val normalizedRelevance: Int,
+    val degradedProvider: Boolean,
     val normalizedTitle: String,
 )
 
@@ -208,6 +209,15 @@ class IndexQueryEngine(
             .toList()
             .awaitAll()
 
+        val degradedProviderIds = outcomes
+            .asSequence()
+            .mapNotNull { outcome ->
+                outcome.issue
+                    ?.takeIf { issue -> issue.kind == IndexProviderIssueKind.DEGRADED }
+                    ?.providerId
+            }
+            .toSet()
+
         val ranking = Comparator<RankedIndexResult> { left, right ->
             if (left.result.providerId == right.result.providerId) {
                 compareSameProviderResults(left, right)
@@ -216,7 +226,12 @@ class IndexQueryEngine(
                 if (relevanceOrder != 0) {
                     relevanceOrder
                 } else {
-                    compareStableResultIdentity(left, right)
+                    val healthOrder = compareProviderHealth(left, right)
+                    if (healthOrder != 0) {
+                        healthOrder
+                    } else {
+                        compareStableResultIdentity(left, right)
+                    }
                 }
             }
         }
@@ -228,6 +243,7 @@ class IndexQueryEngine(
                 RankedIndexResult(
                     result = result,
                     normalizedRelevance = normalizedCrossProviderRelevance(query, result),
+                    degradedProvider = result.providerId in degradedProviderIds,
                     normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
                 )
             }
@@ -262,6 +278,15 @@ class IndexQueryEngine(
         if (relevanceOrder != 0) return relevanceOrder
 
         return compareStableResultIdentity(left, right)
+    }
+
+    private fun compareProviderHealth(
+        left: RankedIndexResult,
+        right: RankedIndexResult,
+    ): Int = when {
+        left.degradedProvider == right.degradedProvider -> 0
+        left.degradedProvider -> 1
+        else -> -1
     }
 
     private fun normalizedCrossProviderRelevance(
