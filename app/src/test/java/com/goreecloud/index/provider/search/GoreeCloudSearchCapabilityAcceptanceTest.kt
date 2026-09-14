@@ -8,11 +8,15 @@ import org.junit.Test
 
 class GoreeCloudSearchCapabilityAcceptanceTest {
     @Test
-    fun developmentModeAcceptsDevelopmentCapability() = runTest {
+    fun developmentModeAcceptsLegacyDevelopmentGetCapability() = runTest {
         var searchCalls = 0
         val provider = provider(
             mode = GoreeCloudSearchAcceptanceMode.DEVELOPMENT,
-            capability = capability(productionAccepted = false),
+            capability = capability(
+                productionAccepted = false,
+                methods = setOf("GET"),
+                preferredMethod = "GET",
+            ),
         ) {
             searchCalls++
         }
@@ -43,7 +47,33 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
     }
 
     @Test
-    fun productionModeAcceptsProductionCapability() = runTest {
+    fun productionModeRejectsGetOnlyCapabilityBeforeQuery() = runTest {
+        var searchCalls = 0
+        val provider = provider(
+            mode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
+            capability = capability(
+                productionAccepted = true,
+                methods = setOf("GET"),
+                preferredMethod = "GET",
+            ),
+        ) {
+            searchCalls++
+        }
+
+        val failure = runCatching {
+            provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "GoreeCloud Search query capability does not provide the required production POST transport",
+            failure?.message,
+        )
+        assertEquals(0, searchCalls)
+    }
+
+    @Test
+    fun productionModeAcceptsProductionPostCapability() = runTest {
         var searchCalls = 0
         val provider = provider(
             mode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
@@ -75,14 +105,19 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         acceptanceMode = mode,
     )
 
-    private fun capability(productionAccepted: Boolean): GoreeCloudSearchCapability =
-        GoreeCloudSearchCapability(
-            id = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
-            contractVersion = GOREECLOUD_SEARCH_API_VERSION,
-            authoritative = true,
-            current = true,
-            endpoint = GOREECLOUD_SEARCH_QUERY_ENDPOINT,
-            maxResults = GOREECLOUD_SEARCH_MAX_RESULTS,
-            productionAccepted = productionAccepted,
-        )
+    private fun capability(
+        productionAccepted: Boolean,
+        methods: Set<String> = setOf("POST", "GET"),
+        preferredMethod: String = GOREECLOUD_SEARCH_PREFERRED_METHOD,
+    ): GoreeCloudSearchCapability = GoreeCloudSearchCapability(
+        id = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
+        contractVersion = GOREECLOUD_SEARCH_API_VERSION,
+        authoritative = true,
+        current = true,
+        endpoint = GOREECLOUD_SEARCH_QUERY_ENDPOINT,
+        maxResults = GOREECLOUD_SEARCH_MAX_RESULTS,
+        productionAccepted = productionAccepted,
+        methods = methods,
+        preferredMethod = preferredMethod,
+    )
 }
