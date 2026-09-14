@@ -43,6 +43,7 @@ Launcher, Browser, or user
       → normalize provider outcomes
       → normalize cross-provider textual relevance
       → prefer healthy source only when normalized relevance ties
+      → prefer LOCAL, then MIXED, then REMOTE only when relevance and health tie
   → IndexSearchSnapshot
       → ranked provider-scoped results
       → AUTHORIZATION_REQUIRED / FAILED / TIMED_OUT / DEGRADED / INVALID_RESULT issues
@@ -69,6 +70,8 @@ This is a **consumer contract**, not substitute authority. No Identity endpoint 
 The engine considers only providers applicable to the current query. This prevents non-browsing private sources from generating unnecessary authority prompts or enumerating data on blank input.
 
 Providers must be independently cancellable, bounded by timeout, and unable to suppress healthy sibling providers through ordinary failure.
+
+The provider-declared `processingLocation` is also available to Index-owned composition after the provider has already passed scope and authority gates. It is not an authorization mechanism: a remote provider must first be eligible and authorized before any ranking tie-break can consider its results.
 
 ## Applications Provider
 
@@ -126,7 +129,7 @@ Invalid executable actions fail closed with sanitized user-visible/provider issu
 
 Index is responsible for cross-provider composition. Provider-local scores are authoritative only inside the provider that produced them; raw score magnitudes are not compared across provider boundaries.
 
-The current Development engine implements an explicit normalization and bounded source-health layer:
+The current Development engine implements an explicit normalization, bounded source-health, and bounded local-first composition layer:
 
 - cross-provider ordering uses Index-owned normalized textual relevance derived from title and subtitle match quality;
 - exact, prefix, token-prefix, contained-title, and secondary-text matches use one Index-owned scale;
@@ -135,11 +138,14 @@ The current Development engine implements an explicit normalization and bounded 
 - provider `sourceOrdinal` remains a same-provider tie-breaker when provider-local scores tie;
 - when different providers have equal normalized relevance, a healthy source is preferred over a source that explicitly returned `DEGRADED` status;
 - source health is deliberately subordinate to relevance: a stronger match from a degraded provider still outranks a weaker match from a healthy provider;
+- when normalized relevance and health are both equal across providers, processing location is used as a final privacy-preserving tie-breaker: `LOCAL` before `MIXED` before `REMOTE`;
+- processing location is deliberately subordinate to relevance and health: a stronger remote result still outranks a weaker local result, and a healthy remote result can outrank an equally relevant degraded local result;
+- location ranking never makes an ineligible provider eligible and never bypasses `localOnly`, allowlist, Privacy Shield, Identity, or other authority gates;
 - `INVALID_RESULT` keeps its existing issue precedence and is not silently reclassified as ordinary degradation for ranking purposes;
-- equal cross-provider normalized relevance and equal health fall back to deterministic stable title/provider/id ordering rather than raw provider score;
+- equal cross-provider normalized relevance, equal health, and equal location fall back to deterministic stable title/provider/id ordering rather than raw provider score;
 - provider-scoped deduplication remains after ranking, so the strongest same-provider duplicate survives without collapsing distinct resources owned by different providers.
 
-This is a bounded baseline, not the final blending model. Future ranking work can add explicit factors such as result type, source confidence, local-versus-remote intent, source-owned recency, user-declared source preference, richer capability/health evidence, and privacy/remote-processing cost. Those factors must be Index-owned, explainable, and independently authorized where applicable rather than inferred from incomparable provider score scales.
+This is a bounded baseline, not the final blending model. Future ranking work can add explicit factors such as result type, source confidence, source-owned recency, user-declared source preference, richer capability/health evidence, and privacy cost that is more specific than processing location. Those factors must be Index-owned, explainable, and independently authorized where applicable rather than inferred from incomparable provider score scales.
 
 ## Cancellation and Performance
 
@@ -176,6 +182,7 @@ Index is migration-required until Index-owned surfaces and native mappings have 
 - Provider exception → sanitized `FAILED`; healthy sibling results preserved.
 - Provider timeout → sanitized `TIMED_OUT`; healthy sibling results preserved.
 - Provider degraded response → valid results may survive with `DEGRADED` status and health-aware equal-relevance composition.
+- Equal relevance and health across different processing locations → prefer local execution without overriding a stronger remote result.
 - Parent/query cancellation → propagates.
 - Disallowed provider → not dispatched.
 - Remote provider under local-only execution → not dispatched and not preflighted.
@@ -196,7 +203,7 @@ This is Development evidence only.
 1. complete accepted Privacy Shield and Identity adapter paths with explicit user-decision handling;
 2. validate Contacts on representative devices;
 3. harden the Search provider capability lifecycle and production-acceptance gate;
-4. extend the implemented textual + degraded-state composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, local/remote, and privacy-cost blending;
+4. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
 5. add incremental result delivery while preserving deterministic cancellation and source status;
 6. expand files/calendar/media providers only after authority and privacy boundaries are proven;
 7. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
