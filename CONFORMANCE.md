@@ -2,7 +2,7 @@
 
 ## Lifecycle State
 
-**Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` Contacts/authority slice remains branch source until exact-head CI and merge acceptance complete.
+**Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` provider/authority work remains branch source until exact-head CI and merge acceptance complete.
 
 ## Native Implementation
 
@@ -34,15 +34,15 @@
 ## Authority Model
 
 - [x] Android runtime permission is distinct from Privacy Shield and Identity authority.
-- [x] Privacy Shield/Identity evidence requires referenced unconstrained `ALLOW`.
+- [x] Privacy Shield/Identity evidence requires referenced unconstrained `ALLOW` for the provider paths that use that evidence model.
 - [x] `DENY`, `REQUIRE_USER_DECISION`, and `UNAVAILABLE` fail closed.
-- [x] `ALLOW_WITH_CONSTRAINTS` fails closed until obligations can be evaluated.
 - [x] Missing authority prevents provider dispatch.
 - [x] Internal execution context is not described as platform authorization.
-- [ ] Accepted Privacy Shield runtime adapter.
-- [ ] Accepted GoreeCloud Identity runtime adapter.
-- [ ] User decision/permission workflow bound to accepted platform decisions.
-- [ ] Runtime decision expiry/revocation/obligation evaluation.
+- [x] Branch source: remote GoreeCloud Search uses a separate operation-scoped Privacy Shield authorization adapter and canonical `psc_*` capability-reference boundary.
+- [ ] Accepted Privacy Shield runtime adapter/decision-acquisition transport.
+- [ ] Accepted GoreeCloud Identity runtime adapter and authenticated service/requester identity path.
+- [ ] User decision/permission workflow bound to accepted platform decisions where applicable.
+- [ ] Runtime decision expiry/revocation/obligation evaluation beyond currently modeled provider contracts.
 
 ## Applications Provider
 
@@ -66,35 +66,40 @@
 - [x] Typed contact-view result action.
 - [x] Contact action URI scheme/authority/path validation before handoff.
 - [x] Android + Privacy Shield + Identity requirements declared.
-- [x] Current runtime keeps Privacy Shield/Identity unavailable, so Contacts is not dispatched.
+- [x] Current runtime keeps unavailable authority fail-closed, so protected Contacts dispatch is not fabricated.
 - [ ] Accepted Contacts runtime enablement.
 - [ ] Explicit user opt-in and Android permission grant flow.
 - [ ] Representative-device cancellation/timeout/action acceptance.
 
-## Glaze UI 2.1.0
+## Glaze UI V1.4 / 1.4.0 — Optical Intelligence
 
-- [x] Source targets Glaze UI 2.1.0.
-- [x] Search-first interaction and visible source state.
-- [x] Authorization-required state distinct from operational failure/timeout.
-- [x] Safe-drawing insets, bounded targets, semantic headings, non-animated progress.
-- [ ] Formal application-specific conformance.
-- [ ] Reduced transparency / increased contrast / reduced motion / large-text acceptance.
-- [ ] Representative phone/tablet visual/accessibility acceptance.
+- [x] Branch source contract targets the current Official Stable Glaze UI V1.4 / `1.4.0` baseline.
+- [x] Historical `1.1.0` and `2.1.0` values are treated as superseded implementation history, not current release authority.
+- [x] Search-first interaction and visible source/authority state remain explicit.
+- [x] Authorization-required state remains distinct from operational failure/timeout.
+- [x] Safe-drawing insets, bounded targets, semantic headings, and non-animated progress remain represented in the Development source line.
+- [ ] Repository-local rendered/native V1.4 visual acceptance.
+- [ ] Reduced Transparency / Increased Contrast / Reduced Motion / large-text acceptance.
+- [ ] Localization/RTL acceptance.
+- [ ] Representative phone/tablet/form-factor and performance acceptance.
+- [ ] Formal application-specific V1.4 conformance and production acceptance.
 
 ## Privacy Shield
 
 - [x] No silent remote fallback.
-- [x] Current providers declare local processing.
+- [x] Local providers declare local processing where applicable.
 - [x] No intentional persistent search history or query analytics.
 - [x] Branch source consumes decision outcome/reference separately from Android permission.
-- [ ] Real Privacy Shield request/response adapter and runtime evidence.
-- [ ] Provider controls and retained-decision lifecycle.
+- [x] Branch source uses a bounded operation-scoped capability-reference contract for production Search delegation preparation.
+- [ ] Real Privacy Shield request/response decision-acquisition adapter and accepted runtime evidence.
+- [ ] Provider controls and retained-decision lifecycle where applicable.
 
 ## GoreeCloud Identity
 
 - [x] Authentication is not treated as blanket authorization.
-- [x] Branch source requires independent Identity authorization evidence for Contacts.
+- [x] Branch source requires independent Identity authorization evidence for protected local providers where declared.
 - [ ] Actual Identity authorization adapter/API acceptance.
+- [ ] Authenticated requester/service identity for protected remote-provider transport.
 - [ ] User/profile/caller isolation acceptance.
 
 ## Wardveil Security, Everkeep, and Mesh
@@ -113,4 +118,4 @@
 - Artifact: `9772740479`
 - Artifact digest: `sha256:87162d517a95622f35c46a63992ed1c545e125ee620c0fa544e265285d61a22c`
 
-Branch checks are not marked accepted until their conclusions are observed.
+This section records historical accepted-main Development evidence. Branch checks and newer source work are not marked accepted-main or Stable until normal merge/release governance and runtime acceptance complete.
