@@ -193,6 +193,58 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
         )
     }
 
+    @Test
+    fun capabilityReferenceWithWhitespaceFailsClosed() = runTest {
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(capabilityTokenReference = "psc_test capability"),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision is missing a canonical capability-token reference",
+            failure?.message,
+        )
+    }
+
+    @Test
+    fun capabilityReferenceWithControlCharacterFailsClosed() = runTest {
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(capabilityTokenReference = "psc_test\u0000capability"),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision is missing a canonical capability-token reference",
+            failure?.message,
+        )
+    }
+
+    @Test
+    fun oversizedCapabilityReferenceFailsClosed() = runTest {
+        val oversized = "psc_" + "a".repeat(PRIVACY_SHIELD_SEARCH_CAPABILITY_REFERENCE_MAX_LENGTH)
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(capabilityTokenReference = oversized),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision is missing a canonical capability-token reference",
+            failure?.message,
+        )
+    }
+
     private fun adapter(decision: PrivacyShieldSearchDecision) =
         PrivacyShieldSearchAuthorizationAdapter(
             decisionClient = PrivacyShieldDecisionClient { decision },
