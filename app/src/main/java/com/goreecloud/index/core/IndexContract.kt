@@ -239,12 +239,11 @@ class IndexQueryEngine(
             .flatMap { outcome ->
                 val degradedProvider = outcome.issue?.kind == IndexProviderIssueKind.DEGRADED
                 outcome.results.asSequence().map { result ->
-                    RankedIndexResult(
+                    rankedResult(
+                        query = query,
                         result = result,
-                        normalizedRelevance = normalizedCrossProviderRelevance(query, result),
                         degradedProvider = degradedProvider,
                         processingLocation = outcome.processingLocation,
-                        normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
                     )
                 }
             }
@@ -263,6 +262,19 @@ class IndexQueryEngine(
                 ).distinctBy { it.providerId },
         )
     }
+
+    private fun rankedResult(
+        query: IndexQuery,
+        result: IndexResult,
+        degradedProvider: Boolean,
+        processingLocation: IndexProcessingLocation,
+    ) = RankedIndexResult(
+        result = result,
+        normalizedRelevance = normalizedCrossProviderRelevance(query, result),
+        degradedProvider = degradedProvider,
+        processingLocation = processingLocation,
+        normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
+    )
 
     private fun compareSameProviderResults(
         left: RankedIndexResult,
@@ -322,6 +334,26 @@ class IndexQueryEngine(
         return left.result.id.compareTo(right.result.id)
     }
 
+    private fun boundProviderResults(
+        results: List<IndexResult>,
+        query: IndexQuery,
+        processingLocation: IndexProcessingLocation,
+    ): List<IndexResult> = results
+        .asSequence()
+        .map { result ->
+            rankedResult(
+                query = query,
+                result = result,
+                degradedProvider = false,
+                processingLocation = processingLocation,
+            )
+        }
+        .sortedWith(Comparator(::compareSameProviderResults))
+        .map { it.result }
+        .distinctBy(IndexResult::id)
+        .take(query.maxResults)
+        .toList()
+
     private fun isCompatibleProvider(provider: IndexProvider): Boolean =
         provider.contractVersion == GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
 
@@ -352,8 +384,9 @@ class IndexQueryEngine(
                 result.title.isNotBlank() &&
                 (result.sourceOrdinal == null || result.sourceOrdinal >= 0)
         }
+        val exceededResultBound = providerResponse.results.size > query.maxResults
         val issue = when {
-            validResults.size != providerResponse.results.size -> IndexProviderIssue(
+            validResults.size != providerResponse.results.size || exceededResultBound -> IndexProviderIssue(
                 providerId = provider.providerId,
                 providerName = provider.displayName,
                 kind = IndexProviderIssueKind.INVALID_RESULT,
@@ -368,7 +401,11 @@ class IndexQueryEngine(
 
         IndexProviderOutcome(
             processingLocation = provider.processingLocation,
-            results = validResults,
+            results = boundProviderResults(
+                results = validResults,
+                query = query,
+                processingLocation = provider.processingLocation,
+            ),
             issue = issue,
         )
     } catch (_: TimeoutCancellationException) {
