@@ -23,7 +23,6 @@ import com.goreecloud.index.core.IndexProviderAuthority
 import com.goreecloud.index.core.IndexQueryEngine
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexSourceAuthorityProjection
-import com.goreecloud.index.core.IndexSourceAuthorityStatus
 import com.goreecloud.index.core.UnavailableIndexPlatformAuthorityGateway
 import com.goreecloud.index.provider.apps.InstalledAppsProvider
 import com.goreecloud.index.provider.contacts.ContactsProvider
@@ -65,10 +64,7 @@ class MainActivity : ComponentActivity() {
                     onSearch = { query, enabledProviderIds ->
                         queryEngine.searchIncrementally(
                             rawQuery = query,
-                            executionContext = executionContext(
-                                enabledProviderIds = enabledProviderIds,
-                                contactsAuthority = contactsAuthority,
-                            ),
+                            executionContext = executionContext(enabledProviderIds),
                         )
                     },
                     onOpenResult = ::openResult,
@@ -93,15 +89,13 @@ class MainActivity : ComponentActivity() {
         snapshot = platformAuthorityGateway.contactsSnapshot(),
     )
 
-    private fun executionContext(
-        enabledProviderIds: Set<String>,
-        contactsAuthority: IndexProviderAuthority,
-    ): IndexExecutionContext = IndexDevelopmentSourcePolicy.executionContext(
-        requestedProviderIds = enabledProviderIds,
-        providerAuthorities = mapOf(
-            GoreeCloudIndexContract.PROVIDER_CONTACTS to contactsAuthority,
-        ),
-    )
+    private fun executionContext(enabledProviderIds: Set<String>): IndexExecutionContext =
+        IndexDevelopmentSourcePolicy.executionContext(
+            requestedProviderIds = enabledProviderIds,
+            providerAuthorities = mapOf(
+                GoreeCloudIndexContract.PROVIDER_CONTACTS to contactsAuthority(),
+            ),
+        )
 
     private fun openResult(result: IndexResult) {
         when (val action = result.action) {
