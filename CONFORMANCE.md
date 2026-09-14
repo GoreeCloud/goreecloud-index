@@ -26,14 +26,16 @@
 - [x] Ranking before provider-scoped deduplication.
 - [x] Cross-provider ranking uses Index-owned normalized textual relevance rather than comparing raw provider score magnitudes across sources.
 - [x] Provider-local score and source order remain same-provider ordering inputs only.
-- [x] Equal cross-provider normalized relevance falls back to deterministic stable identity rather than raw provider score.
 - [x] Explicit `DEGRADED` source state is a bounded cross-provider tie-breaker only after normalized relevance ties; stronger degraded matches still outrank weaker healthy matches.
+- [x] When normalized relevance and health are equal, processing location is a final bounded tie-breaker: `LOCAL`, then `MIXED`, then `REMOTE`.
+- [x] Stronger remote relevance still outranks weaker local relevance; processing location cannot make an ineligible provider eligible or bypass authority gates.
+- [x] Equal cross-provider relevance, health, and processing location fall back to deterministic stable identity rather than raw provider score.
 - [x] `INVALID_RESULT` issue precedence remains distinct from ordinary degradation and is not silently converted into a ranking-health signal.
 - [x] Result-count bounds.
 - [x] Branch source: provider authority requirements and evidence.
 - [x] Branch source: `AUTHORIZATION_REQUIRED` state.
 - [x] Branch source: non-browsing providers excluded on blank query.
-- [ ] Intent-aware/result-type/source-confidence/local-vs-remote/privacy-cost blending beyond the current textual + degraded-state baseline.
+- [ ] Intent-aware/result-type/source-confidence/richer-health/privacy-cost blending beyond the current textual + degraded-state + local-first baseline.
 - [ ] Incremental/streaming results.
 - [ ] Richer provider health/capability negotiation.
 
