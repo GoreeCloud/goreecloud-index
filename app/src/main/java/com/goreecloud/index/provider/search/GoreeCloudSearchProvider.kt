@@ -124,13 +124,11 @@ class GoreeCloudSearchProvider(
         check(response.category == request.category) {
             "GoreeCloud Search response category does not match the delegated category"
         }
-        check(response.results.size <= limit) {
-            "GoreeCloud Search response exceeded the delegated result limit"
-        }
 
         return IndexProviderResponse(
             results = response.results
                 .asSequence()
+                .take(limit)
                 .mapIndexed { sourceOrdinal, result ->
                     result.toIndexResult(normalizedQuery, sourceOrdinal)
                 }
@@ -184,12 +182,6 @@ class GoreeCloudSearchProvider(
         val normalizedURL = normalizeWebURL(url)
         val normalizedTitle = title.trim()
         val normalizedSnippet = snippet?.trim()?.takeIf(String::isNotEmpty)
-        check(normalizedTitle.isNotEmpty()) {
-            "GoreeCloud Search returned a result without a title"
-        }
-        check(normalizedURL != null) {
-            "GoreeCloud Search returned an invalid web result URL"
-        }
         val localScore = IndexTextMatcher.score(
             query = query,
             title = normalizedTitle,
@@ -197,13 +189,13 @@ class GoreeCloudSearchProvider(
         ) ?: 0
 
         return IndexResult(
-            id = normalizedURL,
+            id = normalizedURL.orEmpty(),
             providerId = providerId,
             type = IndexResultType.WEB,
             title = normalizedTitle,
             subtitle = normalizedSnippet,
             score = localScore,
-            action = IndexAction.OpenWeb(normalizedURL),
+            action = normalizedURL?.let(IndexAction::OpenWeb),
             sourceOrdinal = sourceOrdinal,
         )
     }
