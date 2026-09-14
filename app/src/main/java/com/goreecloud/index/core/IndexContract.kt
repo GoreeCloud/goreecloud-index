@@ -76,6 +76,14 @@ data class IndexResult(
     val subtitle: String? = null,
     val score: Int,
     val action: IndexAction? = null,
+    /**
+     * Optional zero-based ordering supplied by the owning provider after that
+     * provider has completed its own ranking. Index uses this only to preserve
+     * same-provider ordering when Index-normalized relevance ties. It is never
+     * compared across different providers and therefore cannot import a remote
+     * provider's private score scale into universal ranking.
+     */
+    val sourceOrdinal: Int? = null,
 )
 
 data class IndexQuery(
@@ -194,10 +202,22 @@ class IndexQueryEngine(
             .toList()
             .awaitAll()
 
-        val ranking = compareByDescending<RankedIndexResult> { it.result.score }
-            .thenBy { it.normalizedTitle }
-            .thenBy { it.result.providerId }
-            .thenBy { it.result.id }
+        val ranking = Comparator<RankedIndexResult> { left, right ->
+            val scoreOrder = right.result.score.compareTo(left.result.score)
+            if (scoreOrder != 0) {
+                scoreOrder
+            } else if (left.result.providerId == right.result.providerId) {
+                val sourceOrder = (left.result.sourceOrdinal ?: Int.MAX_VALUE)
+                    .compareTo(right.result.sourceOrdinal ?: Int.MAX_VALUE)
+                if (sourceOrder != 0) {
+                    sourceOrder
+                } else {
+                    compareStableResultIdentity(left, right)
+                }
+            } else {
+                compareStableResultIdentity(left, right)
+            }
+        }
 
         val results = outcomes
             .asSequence()
@@ -222,6 +242,17 @@ class IndexQueryEngine(
                     outcomes.mapNotNull { it.issue }
                 ).distinctBy { it.providerId },
         )
+    }
+
+    private fun compareStableResultIdentity(
+        left: RankedIndexResult,
+        right: RankedIndexResult,
+    ): Int {
+        val titleOrder = left.normalizedTitle.compareTo(right.normalizedTitle)
+        if (titleOrder != 0) return titleOrder
+        val providerOrder = left.result.providerId.compareTo(right.result.providerId)
+        if (providerOrder != 0) return providerOrder
+        return left.result.id.compareTo(right.result.id)
     }
 
     private fun isCompatibleProvider(provider: IndexProvider): Boolean =
@@ -251,7 +282,8 @@ class IndexQueryEngine(
         val validResults = providerResponse.results.filter { result ->
             result.providerId == provider.providerId &&
                 result.id.isNotBlank() &&
-                result.title.isNotBlank()
+                result.title.isNotBlank() &&
+                (result.sourceOrdinal == null || result.sourceOrdinal >= 0)
         }
         val issue = when {
             validResults.size != providerResponse.results.size -> IndexProviderIssue(
