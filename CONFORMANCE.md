@@ -30,14 +30,19 @@
 - [x] When normalized relevance and health are equal, processing location is a final bounded tie-breaker: `LOCAL`, then `MIXED`, then `REMOTE`.
 - [x] Stronger remote relevance still outranks weaker local relevance; processing location cannot make an ineligible provider eligible or bypass authority gates.
 - [x] Equal cross-provider relevance, health, and processing location fall back to deterministic stable identity rather than raw provider score.
-- [x] `INVALID_RESULT` issue precedence remains distinct from ordinary degradation and is not silently converted into a ranking-health signal.
-- [x] Result-count bounds.
+- [x] Providers are independently constrained by the requested `IndexQuery.maxResults` result count before cross-provider federation.
+- [x] Over-limit provider responses are surfaced as `INVALID_RESULT` rather than silently accepted.
+- [x] Provider-local score/source order is applied before the engine bounds an over-limit response, so the strongest distinct provider-local results survive rather than arbitrary response-order entries.
+- [x] Provider-scoped duplicate IDs are collapsed before the per-provider result bound is consumed.
+- [x] `INVALID_RESULT` issue precedence remains distinct from ordinary degradation and covers provenance, required fields/source ordering, and result-bound violations.
+- [x] Final result-count bounds remain at 100 or the smaller caller-requested count.
 - [x] Branch source: provider authority requirements and evidence.
 - [x] Branch source: `AUTHORIZATION_REQUIRED` state.
 - [x] Branch source: non-browsing providers excluded on blank query.
 - [ ] Intent-aware/result-type/source-confidence/richer-health/privacy-cost blending beyond the current textual + degraded-state + local-first baseline.
 - [ ] Incremental/streaming results.
 - [ ] Richer provider health/capability negotiation.
+- [ ] Bounded top-K provider-local selection that avoids full local sort if future measured result volumes justify the added complexity.
 
 ## Authority Model
 
@@ -59,6 +64,7 @@
 - [x] No Android Internet permission.
 - [x] Local processing and 500 ms provisional timeout.
 - [x] Exact launcher-component action.
+- [x] Honors the requested result limit before returning results.
 - [ ] Representative-device performance acceptance.
 
 ## Contacts Provider — Branch Source
@@ -74,6 +80,7 @@
 - [x] Typed contact-view result action.
 - [x] Contact action URI scheme/authority/path validation before handoff.
 - [x] Android + Privacy Shield + Identity requirements declared.
+- [x] Bounded result collection respects the caller-requested result count and provider hard ceiling.
 - [x] Current runtime keeps unavailable authority fail-closed, so protected Contacts dispatch is not fabricated.
 - [ ] Accepted Contacts runtime enablement.
 - [ ] Explicit user opt-in and Android permission grant flow.
