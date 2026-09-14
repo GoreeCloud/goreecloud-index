@@ -181,9 +181,12 @@ for expected in [
     "IndexDevelopmentSourcePolicy", "selectableProviderIds", "sanitizeEnabledProviderIds",
     "PROVIDER_APPS", "PROVIDER_SETTINGS", "PROVIDER_CONTACTS", "intersect(selectableProviderIds)",
     "localOnly = true", "IndexExecutionContext(", "providerAuthorities = providerAuthorities",
+    "IndexSourceAuthorityStatus", "IndexSourceAuthorityProjection", "missingRequirements",
+    "filterNot(authority::satisfies)", "IndexPermissionReviewPolicy",
+    "canRequestAndroidContactsPermission", "ANDROID_RUNTIME_PERMISSION",
 ]:
     if expected not in source_controls:
-        raise SystemExit(f"Missing fail-closed source-control policy: {expected}")
+        raise SystemExit(f"Missing fail-closed source-control/authority-presentation policy: {expected}")
 if "PROVIDER_SEARCH" in source_controls:
     raise SystemExit("Development source controls must not make remote Search user-enableable")
 
@@ -222,13 +225,16 @@ for expected in [
     "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection.project",
     "platformAuthorityGateway.contactsSnapshot()", "queryEngine.searchIncrementally(",
     "IndexDevelopmentSourcePolicy.selectableProviderIds", "executionContext(enabledProviderIds)",
-    "IndexDevelopmentSourcePolicy.executionContext(", "IndexAction.ViewContact",
-    "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
+    "IndexDevelopmentSourcePolicy.executionContext(", "IndexSourceAuthorityProjection.contacts",
+    "authorityRefreshRevision", "ActivityResultContracts.RequestPermission()",
+    "contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)",
+    "onRequestContactsPermission = ::requestContactsPermission",
+    "IndexAction.ViewContact", "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
     'uri.pathSegments.firstOrNull() == "contacts"', "Unable to open this application.",
     "Unable to open this contact.",
 ]:
     if expected not in main_activity:
-        raise SystemExit(f"MainActivity missing provider/authority/action boundary: {expected}")
+        raise SystemExit(f"MainActivity missing provider/authority/permission/action boundary: {expected}")
 
 ui = (ROOT / "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt").read_text(encoding="utf-8")
 for expected in [
@@ -240,10 +246,13 @@ for expected in [
     "Index will not silently enable GoreeCloud Search or another remote provider",
     "IndexProviderIssueKind.TIMED_OUT", "IndexProviderIssueKind.AUTHORIZATION_REQUIRED",
     "Required permission or platform authority evidence is incomplete",
+    "IndexPermissionReviewPolicy.canRequestAndroidContactsPermission",
+    "Review Android Contacts permission", "Android owns this permission decision",
+    "Privacy Shield and GoreeCloud Identity remain independent requirements",
     "WindowInsets.safeDrawing", "heightIn(min = 72.dp)", "People · On-device",
 ]:
     if expected not in ui:
-        raise SystemExit(f"Missing multi-source/incremental/source-control UI contract: {expected}")
+        raise SystemExit(f"Missing multi-source/incremental/source-control/permission-review UI contract: {expected}")
 
 tests = (ROOT / "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt").read_text(encoding="utf-8")
 for expected in [
@@ -281,10 +290,15 @@ for expected in [
     "developmentSourcePolicyAllowsOnlyIntegratedLocalProviders",
     "developmentSourcePolicyAlwaysEnforcesLocalOnlyExecution",
     "developmentSourcePolicyPreservesAuthorityEvidenceWithoutGrantingNewScope",
+    "contactsAuthorityProjectionReportsOnlyMissingAuthorityDomains",
+    "contactsAuthorityProjectionReportsAllPrerequisitesWhenAuthorityIsUnavailable",
+    "contactsAuthorityProjectionBecomesAvailableOnlyWhenEveryRequirementIsSatisfied",
+    "permissionReviewPolicyOffersAndroidRequestOnlyWhenAndroidPermissionIsMissing",
+    "permissionReviewPolicyDoesNotTreatPrivacyOrIdentityAsAndroidPermissionActions",
     "PROVIDER_SEARCH", "sanitizeEnabledProviderIds", "assertFalse",
 ]:
     if expected not in source_control_tests:
-        raise SystemExit(f"Missing source-control regression: {expected}")
+        raise SystemExit(f"Missing source-control/authority-presentation/permission-review regression: {expected}")
 
 platform_tests = (
     ROOT / "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt"
