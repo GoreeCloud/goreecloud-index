@@ -164,6 +164,7 @@ interface IndexStatusAwareProvider : IndexProvider {
 }
 
 private data class IndexProviderOutcome(
+    val processingLocation: IndexProcessingLocation,
     val results: List<IndexResult> = emptyList(),
     val issue: IndexProviderIssue? = null,
 )
@@ -172,6 +173,7 @@ private data class RankedIndexResult(
     val result: IndexResult,
     val normalizedRelevance: Int,
     val degradedProvider: Boolean,
+    val processingLocation: IndexProcessingLocation,
     val normalizedTitle: String,
 )
 
@@ -209,15 +211,6 @@ class IndexQueryEngine(
             .toList()
             .awaitAll()
 
-        val degradedProviderIds = outcomes
-            .asSequence()
-            .mapNotNull { outcome ->
-                outcome.issue
-                    ?.takeIf { issue -> issue.kind == IndexProviderIssueKind.DEGRADED }
-                    ?.providerId
-            }
-            .toSet()
-
         val ranking = Comparator<RankedIndexResult> { left, right ->
             if (left.result.providerId == right.result.providerId) {
                 compareSameProviderResults(left, right)
@@ -230,7 +223,12 @@ class IndexQueryEngine(
                     if (healthOrder != 0) {
                         healthOrder
                     } else {
-                        compareStableResultIdentity(left, right)
+                        val locationOrder = compareProcessingLocation(left, right)
+                        if (locationOrder != 0) {
+                            locationOrder
+                        } else {
+                            compareStableResultIdentity(left, right)
+                        }
                     }
                 }
             }
@@ -238,14 +236,17 @@ class IndexQueryEngine(
 
         val results = outcomes
             .asSequence()
-            .flatMap { it.results.asSequence() }
-            .map { result ->
-                RankedIndexResult(
-                    result = result,
-                    normalizedRelevance = normalizedCrossProviderRelevance(query, result),
-                    degradedProvider = result.providerId in degradedProviderIds,
-                    normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
-                )
+            .flatMap { outcome ->
+                val degradedProvider = outcome.issue?.kind == IndexProviderIssueKind.DEGRADED
+                outcome.results.asSequence().map { result ->
+                    RankedIndexResult(
+                        result = result,
+                        normalizedRelevance = normalizedCrossProviderRelevance(query, result),
+                        degradedProvider = degradedProvider,
+                        processingLocation = outcome.processingLocation,
+                        normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
+                    )
+                }
             }
             .sortedWith(ranking)
             .map { it.result }
@@ -287,6 +288,18 @@ class IndexQueryEngine(
         left.degradedProvider == right.degradedProvider -> 0
         left.degradedProvider -> 1
         else -> -1
+    }
+
+    private fun compareProcessingLocation(
+        left: RankedIndexResult,
+        right: RankedIndexResult,
+    ): Int = processingLocationRank(left.processingLocation)
+        .compareTo(processingLocationRank(right.processingLocation))
+
+    private fun processingLocationRank(location: IndexProcessingLocation): Int = when (location) {
+        IndexProcessingLocation.LOCAL -> 0
+        IndexProcessingLocation.MIXED -> 1
+        IndexProcessingLocation.REMOTE -> 2
     }
 
     private fun normalizedCrossProviderRelevance(
@@ -354,11 +367,13 @@ class IndexQueryEngine(
         }
 
         IndexProviderOutcome(
+            processingLocation = provider.processingLocation,
             results = validResults,
             issue = issue,
         )
     } catch (_: TimeoutCancellationException) {
         IndexProviderOutcome(
+            processingLocation = provider.processingLocation,
             issue = IndexProviderIssue(
                 providerId = provider.providerId,
                 providerName = provider.displayName,
@@ -369,6 +384,7 @@ class IndexQueryEngine(
         throw cancellation
     } catch (_: Exception) {
         IndexProviderOutcome(
+            processingLocation = provider.processingLocation,
             issue = IndexProviderIssue(
                 providerId = provider.providerId,
                 providerName = provider.displayName,
