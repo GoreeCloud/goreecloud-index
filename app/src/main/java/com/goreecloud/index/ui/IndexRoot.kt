@@ -48,11 +48,13 @@ import com.goreecloud.index.core.IndexProviderIssueKind
 import com.goreecloud.index.core.IndexResult
 import com.goreecloud.index.core.IndexResultType
 import com.goreecloud.index.core.IndexSearchSnapshot
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun IndexRoot(
     initialQuery: String,
-    onSearch: suspend (String) -> IndexSearchSnapshot,
+    onSearch: (String) -> Flow<IndexSearchSnapshot>,
     onOpenResult: (IndexResult) -> Unit,
 ) {
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
@@ -64,7 +66,9 @@ fun IndexRoot(
     LaunchedEffect(query) {
         searching = true
         try {
-            snapshot = onSearch(query)
+            onSearch(query).collect { update ->
+                snapshot = update
+            }
         } finally {
             searching = false
         }
