@@ -11,12 +11,14 @@ required = [
     "app/src/main/java/com/goreecloud/index/MainActivity.kt",
     "app/src/main/java/com/goreecloud/index/core/IndexAuthority.kt",
     "app/src/main/java/com/goreecloud/index/core/IndexContract.kt",
+    "app/src/main/java/com/goreecloud/index/core/IndexSourceControls.kt",
     "app/src/main/java/com/goreecloud/index/core/PlatformAuthorityAdapters.kt",
     "app/src/main/java/com/goreecloud/index/provider/apps/InstalledAppsProvider.kt",
     "app/src/main/java/com/goreecloud/index/provider/contacts/ContactsProvider.kt",
     "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt",
     "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt",
     "app/src/test/java/com/goreecloud/index/core/IndexIncrementalSearchTest.kt",
+    "app/src/test/java/com/goreecloud/index/core/IndexSourceControlsTest.kt",
     "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt",
     "goreecloud/privacy-shield.application-manifest.json",
     "goreecloud/privacy-shield.adapter.json",
@@ -172,6 +174,19 @@ if core.index("sortedWith(ranking)") > core.index(".distinctBy { result ->"):
 if core.index("catch (_: TimeoutCancellationException)") > core.index("catch (cancellation: CancellationException)"):
     raise SystemExit("Timeout handling must occur before general cancellation propagation")
 
+source_controls = (
+    ROOT / "app/src/main/java/com/goreecloud/index/core/IndexSourceControls.kt"
+).read_text(encoding="utf-8")
+for expected in [
+    "IndexDevelopmentSourcePolicy", "selectableProviderIds", "sanitizeEnabledProviderIds",
+    "PROVIDER_APPS", "PROVIDER_SETTINGS", "PROVIDER_CONTACTS", "intersect(selectableProviderIds)",
+    "localOnly = true", "IndexExecutionContext(", "providerAuthorities = providerAuthorities",
+]:
+    if expected not in source_controls:
+        raise SystemExit(f"Missing fail-closed source-control policy: {expected}")
+if "PROVIDER_SEARCH" in source_controls:
+    raise SystemExit("Development source controls must not make remote Search user-enableable")
+
 apps = (ROOT / "app/src/main/java/com/goreecloud/index/provider/apps/InstalledAppsProvider.kt").read_text(encoding="utf-8")
 for expected in [
     'displayName: String = "Applications"', "IndexProcessingLocation.LOCAL",
@@ -206,7 +221,9 @@ for expected in [
     "Manifest.permission.READ_CONTACTS", "IndexPlatformAuthorityGateway",
     "UnavailableIndexPlatformAuthorityGateway", "ContactsAuthorityProjection.project",
     "platformAuthorityGateway.contactsSnapshot()", "queryEngine.searchIncrementally(",
-    "IndexAction.ViewContact", "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
+    "IndexDevelopmentSourcePolicy.selectableProviderIds", "executionContext(enabledProviderIds)",
+    "IndexDevelopmentSourcePolicy.executionContext(", "IndexAction.ViewContact",
+    "ContactsContract.AUTHORITY", 'uri.scheme == "content"',
     'uri.pathSegments.firstOrNull() == "contacts"', "Unable to open this application.",
     "Unable to open this contact.",
 ]:
@@ -215,15 +232,18 @@ for expected in [
 
 ui = (ROOT / "app/src/main/java/com/goreecloud/index/ui/IndexRoot.kt").read_text(encoding="utf-8")
 for expected in [
-    "(String) -> Flow<IndexSearchSnapshot>", "LaunchedEffect(query)",
-    "collect { update ->", "snapshot = update", "Searching authorized sources…",
+    "(String, Set<String>) -> Flow<IndexSearchSnapshot>",
+    "LaunchedEffect(query, enabledProviderIds)", "collect { update ->", "snapshot = update",
+    "Search sources", "Changes apply to this Index session only",
+    "Local-only mode", "Enforced in this Development build",
+    "Internet/Web results remain unavailable here",
+    "Index will not silently enable GoreeCloud Search or another remote provider",
     "IndexProviderIssueKind.TIMED_OUT", "IndexProviderIssueKind.AUTHORIZATION_REQUIRED",
-    "Contacts · On-device · Authority gated",
     "Required permission or platform authority evidence is incomplete",
     "WindowInsets.safeDrawing", "heightIn(min = 72.dp)", "People · On-device",
 ]:
     if expected not in ui:
-        raise SystemExit(f"Missing multi-source/incremental UI contract: {expected}")
+        raise SystemExit(f"Missing multi-source/incremental/source-control UI contract: {expected}")
 
 tests = (ROOT / "app/src/test/java/com/goreecloud/index/core/IndexQueryEngineTest.kt").read_text(encoding="utf-8")
 for expected in [
@@ -253,6 +273,18 @@ for expected in [
 ]:
     if expected not in incremental_tests:
         raise SystemExit(f"Missing incremental search regression: {expected}")
+
+source_control_tests = (
+    ROOT / "app/src/test/java/com/goreecloud/index/core/IndexSourceControlsTest.kt"
+).read_text(encoding="utf-8")
+for expected in [
+    "developmentSourcePolicyAllowsOnlyIntegratedLocalProviders",
+    "developmentSourcePolicyAlwaysEnforcesLocalOnlyExecution",
+    "developmentSourcePolicyPreservesAuthorityEvidenceWithoutGrantingNewScope",
+    "PROVIDER_SEARCH", "sanitizeEnabledProviderIds", "assertFalse",
+]:
+    if expected not in source_control_tests:
+        raise SystemExit(f"Missing source-control regression: {expected}")
 
 platform_tests = (
     ROOT / "app/src/test/java/com/goreecloud/index/core/PlatformAuthorityAdaptersTest.kt"
