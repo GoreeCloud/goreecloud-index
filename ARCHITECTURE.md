@@ -4,7 +4,9 @@
 
 **Release lifecycle: Development.** Accepted `main` remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current branch work is Development source pending normal merge acceptance. Production acceptance and Stable qualification remain false.
 
-The latest verified implementation checkpoint is `b201e182d0698bee55f19e37e46f9d42f419c638`. Platform Contract #47 and Android Index foundation validation #174 passed on that exact revision, including repository and provider contract validation, unit tests, lint, Development APK assembly, APK identity verification, and evidence upload.
+The latest verified implementation checkpoint is `774e727d5ec4e1c74c9ec85e3d023c9b508bd18c`. Platform Contract #61 and Android Index foundation validation #188 passed on that exact revision, including repository/provider/branding validation, the full unit-test suite, lint, Development APK assembly, APK identity verification, and evidence upload.
+
+The immediately preceding privacy-safe authority-explanation checkpoint `703dcf554981b4c00c10365b07de21ee937904d0` passed Platform Contract #56 and Android Index foundation validation #183. The current checkpoint extends that presentation-only explanation with an explicit, user-initiated Android-owned Contacts permission review action without creating Privacy Shield or GoreeCloud Identity approval flows.
 
 ## Authority Model
 
@@ -23,6 +25,8 @@ GoreeCloud Index coordinates universal search; it does not own provider resource
 
 User source selection is **not** authority. A selected provider must still pass scope, provider-contract, processing-location, Android permission, Privacy Shield, GoreeCloud Identity, and other applicable authority gates before Index can dispatch it.
 
+The Android Contacts permission review action is also **not** authority. Index may ask Android to present Android's own runtime permission decision only after an explicit user gesture and only when `READ_CONTACTS` is a missing prerequisite. A grant addresses the Android prerequisite alone. It does not create, imply, or satisfy Privacy Shield or GoreeCloud Identity authorization.
+
 ## Query Flow
 
 ```text
@@ -38,9 +42,14 @@ Launcher, Browser, or user
       → exact provider allowlist
       → local/remote processing boundary
       → provider authority evidence
+  → privacy-safe source authority projection
+      → expose only missing authority-domain types
+      → never expose authority references, IDs, raw decisions, subjects, reason codes, or timestamps
+      → if Android Contacts permission is missing, permit an explicit Android-owned review action
   → IndexRoot / query lifecycle
       → query text + current session source-selection state
       → changing query or enabled sources replaces the active collection
+      → returning from an Android permission decision refreshes authority-derived presentation state
   → IndexQueryEngine.searchIncrementally
       → normalize query + clamp result limit
       → blank-query applicability
@@ -78,6 +87,10 @@ Incremental delivery does not weaken this boundary. Static compatibility and aut
 
 Session source controls also do not weaken the boundary. Turning a source on only places that reviewed local provider into the candidate allowlist; authority evaluation still happens independently for every query. Turning a source off prevents dispatch without altering the provider's underlying Android or GoreeCloud authority state.
 
+`IndexSourceAuthorityProjection` creates a privacy-safe presentation model by projecting only which authority-domain types are unsatisfied. The presentation model does not carry capability references, decision IDs, subject identifiers, reason codes, timestamps, or raw authority payloads. Regression coverage verifies that an underlying Privacy Shield reference cannot appear in this presentation state.
+
+`IndexPermissionReviewPolicy` is intentionally narrower than the authority projection. It permits the UI to expose an Android Contacts permission review action only when `ANDROID_RUNTIME_PERMISSION` is missing. A Privacy Shield or GoreeCloud Identity gap never becomes an Android permission action.
+
 ## Provider Contract
 
 `IndexProvider` declares stable identity, display name, processing location, timeout, authority requirements, blank-query support, contract version, and suspendable search behavior.
@@ -110,6 +123,22 @@ The policy preserves already supplied provider-authority evidence, but it does n
 
 The current source-selection state is session-scoped Compose state only. It is deliberately not persisted to disk, synchronized, or backed up. Any future durable provider preferences require explicit profile/device scope plus applicable Everkeep continuity/recovery semantics before they become authoritative durable Index state.
 
+## Android Contacts Permission Review
+
+The Development application now provides an explicit permission-review action when Contacts is selected and Android `READ_CONTACTS` is one of the missing prerequisites.
+
+- the action is never triggered automatically by source selection or query execution;
+- the user must explicitly press **Review Android Contacts permission**;
+- `ActivityResultContracts.RequestPermission` delegates the decision to Android;
+- Index requests only `Manifest.permission.READ_CONTACTS` for this path;
+- if Android permission is already granted, Index refreshes authority-derived state rather than prompting again;
+- after Android returns a result, Index refreshes its authority projection and reuses the existing cancellation-aware query path;
+- the UI explicitly states that Android owns the permission decision;
+- the UI explicitly states that granting Android permission addresses only the Android prerequisite and leaves Privacy Shield and GoreeCloud Identity independent;
+- Index does not fabricate Privacy Shield consent, capability issuance, Identity authorization, or a combined global “authorized” state.
+
+This completes a bounded Development permission-review slice only. It does not establish accepted Contacts runtime enablement because the shipped platform gateway still lacks accepted Privacy Shield and GoreeCloud Identity runtime evidence.
+
 ## Applications Provider
 
 `InstalledAppsProvider` is a local provider using scoped launcher discovery, label/package matching, exact component actions, and no `QUERY_ALL_PACKAGES` requirement. It already respects `query.maxResults` before returning results.
@@ -128,7 +157,7 @@ The Contacts provider uses Android ContactsProvider authority through `ContactsC
 - Android permission plus Privacy Shield and Identity authority evidence;
 - bounded result collection using the requested result count and the provider's own hard ceiling.
 
-Incomplete or unenforceable authority must prevent provider dispatch. Enabling the Contacts source toggle is not an opt-in substitute for Android permission or GoreeCloud authority.
+Incomplete or unenforceable authority must prevent provider dispatch. Enabling the Contacts source toggle is not an opt-in substitute for Android permission or GoreeCloud authority. Completing Android's runtime permission decision is likewise insufficient by itself; Privacy Shield and GoreeCloud Identity remain independent required authorities.
 
 ## Settings Provider
 
@@ -209,6 +238,7 @@ This is a bounded baseline, not the final blending model. Future ranking work ca
 - `CancellationException` is rethrown and is never converted into `FAILED` or `TIMED_OUT`;
 - provider-owned timeouts remain separately reported as `TIMED_OUT`;
 - the Compose query lifecycle collects the Flow, so a replacement query or source selection cancels the prior collection and its outstanding provider work;
+- authority refresh after an Android permission result recreates the presentation/query collection through the same existing path rather than a second engine;
 - one-shot `search()` returns the last Flow snapshot, providing one composition authority rather than two.
 
 This improves perceived latency when a fast eligible provider can produce useful results before a slower provider completes. It does not claim measured representative-device performance acceptance. Future optimization may add bounded UI-update coalescing or top-K selection if evidence shows that large provider counts/result volumes create churn or sorting pressure; such optimization must preserve deterministic final ordering and source-state evidence.
@@ -219,7 +249,9 @@ Index UI remains source-aware and exposes meaningful provider health/authority s
 
 The Compose surface renders incremental `IndexSearchSnapshot` updates from the query Flow. Existing results may stay visible and be deterministically reordered as later providers complete. The `searching` state remains active until the Flow completes or is cancelled.
 
-The UI now also provides a `Search sources` control card for Applications, Settings, and Contacts. The controls are session-scoped and immediately update the query execution context. The card explicitly explains that source selection does not grant missing permissions or platform authority.
+The UI provides a `Search sources` control card for Applications, Settings, and Contacts. The controls are session-scoped and immediately update the query execution context. The card explicitly explains that source selection does not grant missing permissions or platform authority.
+
+For Contacts, the UI projects only coarse prerequisite-domain status: Android Contacts permission, Privacy Shield authorization, and GoreeCloud Identity authorization. It does not display authority references, decision IDs, subjects, reason codes, timestamps, or raw decision objects. When Android permission is missing, the UI exposes a user-initiated **Review Android Contacts permission** button and explicitly distinguishes Android's permission decision from Privacy Shield and Identity authorization.
 
 A disabled `Local-only mode` indicator communicates that local-only execution is enforced by the Development build rather than being a cosmetic switch. The same surface states that Internet/Web results remain unavailable and that Index will not silently activate GoreeCloud Search or another remote provider when a local source is disabled, unavailable, or unauthorized.
 
@@ -231,11 +263,14 @@ The current official Stable consumer target is **Glaze UI V1.4 / `1.4.0`**.
 
 Earlier Index documentation referenced historical/inconsistent targets. They are not current conformance authority.
 
-Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence. Incremental rendering and the new source-control surface are source-level behavior and do not themselves satisfy those product-specific acceptance gates.
+Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence. Incremental rendering, source controls, authority explanation, and the permission-review action are source-level behavior and do not themselves satisfy those product-specific acceptance gates.
 
 ## Failure and Recovery Model
 
 - Missing authority → provider not dispatched; sanitized `AUTHORIZATION_REQUIRED` can appear in the initial snapshot.
+- Missing Android Contacts permission → coarse prerequisite state may expose the Android-owned review action, but no automatic permission prompt occurs.
+- Android permission denied → Contacts remains blocked; Index refreshes state and does not reinterpret denial as Privacy Shield or Identity state.
+- Android permission granted while Privacy Shield or Identity remains unavailable → Contacts remains blocked on those independent requirements.
 - Provider exception → sanitized `FAILED`; healthy sibling results preserved.
 - Provider timeout → sanitized `TIMED_OUT`; healthy sibling results preserved.
 - Provider degraded response → valid results may survive with `DEGRADED` status and health-aware equal-relevance composition.
@@ -263,13 +298,13 @@ This is Development evidence only.
 
 ## Next Architecture Milestones
 
-1. add permission-review and authority-explanation UX that guides users toward authoritative Android/Privacy Shield/Identity decisions without manufacturing those decisions locally;
+1. keep the Android permission-review action bounded to Android-owned runtime permission and add representative-device denial/re-prompt/settings behavior evidence without inventing policy beyond Android's authoritative state;
 2. define profile/device scoping plus Everkeep continuity semantics before persisting provider preferences;
-3. complete accepted Privacy Shield and Identity adapter paths with explicit user-decision handling;
-4. validate Contacts on representative devices;
+3. complete accepted Privacy Shield and GoreeCloud Identity adapter paths with producer-authoritative user-decision/authorization handling;
+4. validate Contacts end to end on representative devices only after all three independent prerequisites can be satisfied with accepted evidence;
 5. harden the Search provider capability lifecycle and production-acceptance gate before making an Internet provider user-selectable;
 6. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
-7. measure incremental rendering/provider completion and source-toggle behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
+7. measure incremental rendering/provider completion, source-toggle behavior, and authority-refresh behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
 8. expand files/calendar/media providers only after authority and privacy boundaries are proven;
 9. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
 10. add Everkeep recovery semantics for any new durable Index preference/provider state.
