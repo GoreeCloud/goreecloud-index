@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -73,14 +74,16 @@ fun IndexRoot(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    LaunchedEffect(query, enabledProviderIds, authorityRevision) {
-        searching = true
-        try {
-            onSearch(query, enabledProviderIds).collect { update ->
-                snapshot = update
+    key(authorityRevision) {
+        LaunchedEffect(query, enabledProviderIds) {
+            searching = true
+            try {
+                onSearch(query, enabledProviderIds).collect { update ->
+                    snapshot = update
+                }
+            } finally {
+                searching = false
             }
-        } finally {
-            searching = false
         }
     }
 
