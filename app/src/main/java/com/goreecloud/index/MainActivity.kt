@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.core.content.ContextCompat
 import com.goreecloud.index.core.ContactsAuthorityProjection
@@ -37,6 +38,11 @@ class MainActivity : ComponentActivity() {
     private lateinit var settingsProvider: SystemSettingsProvider
     private lateinit var queryEngine: IndexQueryEngine
     private val authorityRefreshRevision = mutableIntStateOf(0)
+    private val contactsPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        authorityRefreshRevision.intValue += 1
+    }
     private val platformAuthorityGateway: IndexPlatformAuthorityGateway =
         UnavailableIndexPlatformAuthorityGateway
 
@@ -67,6 +73,7 @@ class MainActivity : ComponentActivity() {
                             executionContext = executionContext(enabledProviderIds),
                         )
                     },
+                    onRequestContactsPermission = ::requestContactsPermission,
                     onOpenResult = ::openResult,
                 )
             }
@@ -96,6 +103,20 @@ class MainActivity : ComponentActivity() {
                 GoreeCloudIndexContract.PROVIDER_CONTACTS to contactsAuthority(),
             ),
         )
+
+    private fun requestContactsPermission() {
+        if (
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_CONTACTS,
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            authorityRefreshRevision.intValue += 1
+            return
+        }
+
+        contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+    }
 
     private fun openResult(result: IndexResult) {
         when (val action = result.action) {
