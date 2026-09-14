@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.goreecloud.index.core.ContactsAuthorityProjection
 import com.goreecloud.index.core.GoreeCloudIndexContract
 import com.goreecloud.index.core.IndexAction
+import com.goreecloud.index.core.IndexDevelopmentSourcePolicy
 import com.goreecloud.index.core.IndexExecutionContext
 import com.goreecloud.index.core.IndexPlatformAuthorityGateway
 import com.goreecloud.index.core.IndexQueryEngine
@@ -48,10 +49,11 @@ class MainActivity : ComponentActivity() {
             GoreeCloudIndexTheme {
                 IndexRoot(
                     initialQuery = intent.getStringExtra(GoreeCloudIndexContract.EXTRA_QUERY).orEmpty(),
-                    onSearch = { query ->
+                    initiallyEnabledProviderIds = IndexDevelopmentSourcePolicy.selectableProviderIds,
+                    onSearch = { query, enabledProviderIds ->
                         queryEngine.searchIncrementally(
                             rawQuery = query,
-                            executionContext = executionContext(),
+                            executionContext = executionContext(enabledProviderIds),
                         )
                     },
                     onOpenResult = ::openResult,
@@ -67,7 +69,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun executionContext(): IndexExecutionContext {
+    private fun executionContext(enabledProviderIds: Set<String>): IndexExecutionContext {
         val contactsAuthority = ContactsAuthorityProjection.project(
             androidPermissionGranted = ContextCompat.checkSelfPermission(
                 this,
@@ -76,13 +78,8 @@ class MainActivity : ComponentActivity() {
             snapshot = platformAuthorityGateway.contactsSnapshot(),
         )
 
-        return IndexExecutionContext(
-            allowedProviderIds = setOf(
-                GoreeCloudIndexContract.PROVIDER_APPS,
-                GoreeCloudIndexContract.PROVIDER_CONTACTS,
-                GoreeCloudIndexContract.PROVIDER_SETTINGS,
-            ),
-            localOnly = true,
+        return IndexDevelopmentSourcePolicy.executionContext(
+            requestedProviderIds = enabledProviderIds,
             providerAuthorities = mapOf(
                 GoreeCloudIndexContract.PROVIDER_CONTACTS to contactsAuthority,
             ),
