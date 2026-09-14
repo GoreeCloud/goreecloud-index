@@ -29,4 +29,51 @@ class GoreeCloudSearchSensitiveRenderingTest {
         assertFalse(rendered.contains(reference))
         assertTrue(rendered.contains("capabilityTokenReference=<redacted>"))
     }
+
+    @Test
+    fun searchResultDebugRenderingRedactsContentAndUrl() {
+        val title = "Sensitive result title"
+        val url = "https://example.com/private-result"
+        val snippet = "Sensitive result summary"
+        val rendered = GoreeCloudSearchResult(
+            title = title,
+            url = url,
+            snippet = snippet,
+            searchScore = 42,
+        ).toString()
+
+        assertFalse(rendered.contains(title))
+        assertFalse(rendered.contains(url))
+        assertFalse(rendered.contains(snippet))
+        assertTrue(rendered.contains("title=<redacted>"))
+        assertTrue(rendered.contains("url=<redacted>"))
+        assertTrue(rendered.contains("snippet=<redacted>"))
+        assertTrue(rendered.contains("searchScore=42"))
+    }
+
+    @Test
+    fun searchResponseDebugRenderingRedactsQueryAndNestedResults() {
+        val query = "private medical research query"
+        val title = "Sensitive result title"
+        val url = "https://example.com/private-result"
+        val rendered = GoreeCloudSearchResponse(
+            apiVersion = GOREECLOUD_SEARCH_API_VERSION,
+            query = query,
+            category = "general",
+            results = listOf(
+                GoreeCloudSearchResult(
+                    title = title,
+                    url = url,
+                    snippet = "Sensitive result summary",
+                ),
+            ),
+            degraded = false,
+        ).toString()
+
+        assertFalse(rendered.contains(query))
+        assertFalse(rendered.contains(title))
+        assertFalse(rendered.contains(url))
+        assertTrue(rendered.contains("query=<redacted>"))
+        assertTrue(rendered.contains("resultCount=1"))
+    }
 }
