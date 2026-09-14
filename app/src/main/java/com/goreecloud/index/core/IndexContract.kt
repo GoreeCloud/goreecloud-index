@@ -74,14 +74,19 @@ data class IndexResult(
     val type: IndexResultType,
     val title: String,
     val subtitle: String? = null,
+    /**
+     * Provider-local ranking score. Index may use this to order results from the
+     * same provider, but never compares the raw numeric value across providers.
+     * Universal composition uses Index-owned normalized relevance instead.
+     */
     val score: Int,
     val action: IndexAction? = null,
     /**
      * Optional zero-based ordering supplied by the owning provider after that
      * provider has completed its own ranking. Index uses this only to preserve
-     * same-provider ordering when Index-normalized relevance ties. It is never
+     * same-provider ordering when provider-local scores tie. It is never
      * compared across different providers and therefore cannot import a remote
-     * provider's private score scale into universal ranking.
+     * provider's private ranking scale into universal composition.
      */
     val sourceOrdinal: Int? = null,
 )
@@ -165,6 +170,7 @@ private data class IndexProviderOutcome(
 
 private data class RankedIndexResult(
     val result: IndexResult,
+    val normalizedRelevance: Int,
     val normalizedTitle: String,
 )
 
@@ -203,19 +209,15 @@ class IndexQueryEngine(
             .awaitAll()
 
         val ranking = Comparator<RankedIndexResult> { left, right ->
-            val scoreOrder = right.result.score.compareTo(left.result.score)
-            if (scoreOrder != 0) {
-                scoreOrder
-            } else if (left.result.providerId == right.result.providerId) {
-                val sourceOrder = (left.result.sourceOrdinal ?: Int.MAX_VALUE)
-                    .compareTo(right.result.sourceOrdinal ?: Int.MAX_VALUE)
-                if (sourceOrder != 0) {
-                    sourceOrder
+            if (left.result.providerId == right.result.providerId) {
+                compareSameProviderResults(left, right)
+            } else {
+                val relevanceOrder = right.normalizedRelevance.compareTo(left.normalizedRelevance)
+                if (relevanceOrder != 0) {
+                    relevanceOrder
                 } else {
                     compareStableResultIdentity(left, right)
                 }
-            } else {
-                compareStableResultIdentity(left, right)
             }
         }
 
@@ -225,6 +227,7 @@ class IndexQueryEngine(
             .map { result ->
                 RankedIndexResult(
                     result = result,
+                    normalizedRelevance = normalizedCrossProviderRelevance(query, result),
                     normalizedTitle = IndexQueryNormalizer.normalizeForMatching(result.title),
                 )
             }
@@ -243,6 +246,32 @@ class IndexQueryEngine(
                 ).distinctBy { it.providerId },
         )
     }
+
+    private fun compareSameProviderResults(
+        left: RankedIndexResult,
+        right: RankedIndexResult,
+    ): Int {
+        val providerScoreOrder = right.result.score.compareTo(left.result.score)
+        if (providerScoreOrder != 0) return providerScoreOrder
+
+        val sourceOrder = (left.result.sourceOrdinal ?: Int.MAX_VALUE)
+            .compareTo(right.result.sourceOrdinal ?: Int.MAX_VALUE)
+        if (sourceOrder != 0) return sourceOrder
+
+        val relevanceOrder = right.normalizedRelevance.compareTo(left.normalizedRelevance)
+        if (relevanceOrder != 0) return relevanceOrder
+
+        return compareStableResultIdentity(left, right)
+    }
+
+    private fun normalizedCrossProviderRelevance(
+        query: IndexQuery,
+        result: IndexResult,
+    ): Int = IndexTextMatcher.score(
+        query = query.text,
+        title = result.title,
+        secondary = result.subtitle.orEmpty(),
+    ) ?: 0
 
     private fun compareStableResultIdentity(
         left: RankedIndexResult,
