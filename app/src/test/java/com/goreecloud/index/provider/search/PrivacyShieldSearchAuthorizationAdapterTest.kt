@@ -13,7 +13,7 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
     )
 
     @Test
-    fun exactAllowDecisionReturnsCapabilityTokenReference() = runTest {
+    fun canonicalConstrainedDecisionReturnsCapabilityReference() = runTest {
         var observedRequest: GoreeCloudSearchPrivacyAuthorizationRequest? = null
         val adapter = PrivacyShieldSearchAuthorizationAdapter(
             decisionClient = PrivacyShieldDecisionClient { submittedRequest ->
@@ -30,7 +30,7 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
         assertEquals("private_goreecloud", observedRequest?.processingZone)
         assertEquals("https://search.goreecloud.com", observedRequest?.destination)
         assertEquals("none", observedRequest?.retentionMode)
-        assertEquals("privacy-shield:capability:123", authorization.capabilityTokenReference)
+        assertEquals("psc_test-capability-123", authorization.capabilityTokenReference)
     }
 
     @Test
@@ -74,11 +74,27 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
     }
 
     @Test
-    fun constrainedDecisionFailsClosed() = runTest {
+    fun unconstrainedAllowFailsClosedForPrivateSearch() = runTest {
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(outcome = "ALLOW"),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision does not match the required constrained outcome",
+            failure?.message,
+        )
+    }
+
+    @Test
+    fun unknownConstraintObligationFailsClosed() = runTest {
         val adapter = adapter(
             allowedDecision(request.requestId).copy(
-                outcome = "ALLOW_WITH_CONSTRAINTS",
-                obligations = setOf("redact-sensitive-terms"),
+                obligations = PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS + "redact-sensitive-terms",
             ),
         )
 
@@ -88,7 +104,26 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
 
         assertTrue(failure is IllegalStateException)
         assertEquals(
-            "Privacy Shield Search decision is not an unconstrained allow",
+            "Privacy Shield Search decision contains an unsupported obligation set",
+            failure?.message,
+        )
+    }
+
+    @Test
+    fun missingCanonicalConstraintObligationFailsClosed() = runTest {
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(
+                obligations = PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS - "enforce_processing_zone",
+            ),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision contains an unsupported obligation set",
             failure?.message,
         )
     }
@@ -125,7 +160,7 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
     }
 
     @Test
-    fun missingCapabilityTokenReferenceFailsClosed() = runTest {
+    fun missingCapabilityReferenceFailsClosed() = runTest {
         val adapter = adapter(
             allowedDecision(request.requestId).copy(capabilityTokenReference = null),
         )
@@ -136,7 +171,24 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
 
         assertTrue(failure is IllegalStateException)
         assertEquals(
-            "Privacy Shield Search decision is missing a capability-token reference",
+            "Privacy Shield Search decision is missing a canonical capability-token reference",
+            failure?.message,
+        )
+    }
+
+    @Test
+    fun nonCanonicalCapabilityReferenceFailsClosed() = runTest {
+        val adapter = adapter(
+            allowedDecision(request.requestId).copy(capabilityTokenReference = "privacy-shield:capability:123"),
+        )
+
+        val failure = runCatching {
+            adapter.authorize(request)
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "Privacy Shield Search decision is missing a canonical capability-token reference",
             failure?.message,
         )
     }
@@ -150,13 +202,13 @@ class PrivacyShieldSearchAuthorizationAdapterTest {
     private fun allowedDecision(requestId: String) = PrivacyShieldSearchDecision(
         decisionId = "privacy-shield:decision:123",
         requestId = requestId,
-        outcome = "ALLOW",
+        outcome = PRIVACY_SHIELD_SEARCH_REQUIRED_OUTCOME,
         permittedOperations = setOf("search.query"),
         processingZone = "private_goreecloud",
         permittedDestinations = setOf("https://search.goreecloud.com"),
         retentionMode = "none",
-        obligations = emptySet(),
+        obligations = PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS,
         expiresAt = "2026-09-14T12:05:00Z",
-        capabilityTokenReference = "privacy-shield:capability:123",
+        capabilityTokenReference = "psc_test-capability-123",
     )
 }
