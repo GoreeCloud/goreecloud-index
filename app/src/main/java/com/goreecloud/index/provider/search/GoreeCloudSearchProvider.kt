@@ -47,13 +47,25 @@ private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
  * data, application inventory, identity identifiers, and raw authorization
  * evidence are not part of this boundary. Production requests carry only the
  * capability-token reference that Privacy Shield authorized for this operation.
+ *
+ * Query text and the operation-scoped capability reference are deliberately
+ * excluded from debug rendering so ordinary logs/diagnostics cannot turn this
+ * transport object into search-history or authorization-material telemetry.
  */
 data class GoreeCloudSearchRequest(
     val query: String,
     val category: String = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
     val limit: Int,
     val privacyCapabilityReference: String? = null,
-)
+) {
+    override fun toString(): String =
+        "GoreeCloudSearchRequest(" +
+            "query=<redacted>, " +
+            "category=$category, " +
+            "limit=$limit, " +
+            "privacyCapabilityReference=${if (privacyCapabilityReference == null) "null" else "<redacted>"}" +
+            ")"
+}
 
 data class GoreeCloudSearchResult(
     val title: String,
@@ -117,7 +129,10 @@ data class GoreeCloudSearchPrivacyAuthorizationRequest(
 
 data class GoreeCloudSearchPrivacyAuthorization(
     val capabilityTokenReference: String,
-)
+) {
+    override fun toString(): String =
+        "GoreeCloudSearchPrivacyAuthorization(capabilityTokenReference=<redacted>)"
+}
 
 enum class GoreeCloudSearchAcceptanceMode {
     DEVELOPMENT,
