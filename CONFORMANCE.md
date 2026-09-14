@@ -4,7 +4,7 @@
 
 **Release lifecycle: Development.** Production acceptance and Stable qualification remain false. Accepted `main` is `cc3cc21d6e11dad026253c3371c3b67663d3b726`; the `0.3.0-dev` provider/authority work remains branch source until normal merge acceptance completes.
 
-The latest verified implementation checkpoint is `b201e182d0698bee55f19e37e46f9d42f419c638`. Platform Contract #47 and Android Index foundation validation #174 passed on that exact revision.
+The latest verified implementation checkpoint is `774e727d5ec4e1c74c9ec85e3d023c9b508bd18c`. Platform Contract #61 and Android Index foundation validation #188 passed on that exact revision.
 
 ## Native Implementation
 
@@ -49,6 +49,7 @@ The latest verified implementation checkpoint is `b201e182d0698bee55f19e37e46f9d
 - [x] Cancelling incremental collection cancels outstanding provider work and does not manufacture provider failures.
 - [x] Repository guard requires the incremental Flow/launch/composition/UI wiring and the dedicated incremental regression suite.
 - [x] Session source changes participate in the same Compose query lifecycle, replacing collection and cancelling superseded provider work.
+- [x] Android permission-result refresh reuses the same authority projection and incremental query lifecycle rather than creating a second search path.
 - [ ] Intent-aware/result-type/source-confidence/richer-health/privacy-cost blending beyond the current textual + degraded-state + local-first baseline.
 - [ ] Representative-device incremental-rendering/perceived-latency acceptance.
 - [ ] Bounded update coalescing if measured provider counts/completion cadence produce excessive UI churn.
@@ -72,7 +73,7 @@ These are source/build checks. They do not establish representative-device UI sm
 
 ## Source Controls and Processing Disclosure
 
-Exact implementation checkpoint `b201e182d0698bee55f19e37e46f9d42f419c638` passed Android Index foundation validation #174 and Platform Contract #47.
+Exact source-control implementation checkpoint `b201e182d0698bee55f19e37e46f9d42f419c638` passed Android Index foundation validation #174 and Platform Contract #47. The later documentation-synchronized source-control checkpoint `d4d513b9c090291cc1acf9e75707c469dfa4e156` passed Android #177 and Platform Contract #50.
 
 - [x] Development UI exposes session-scoped enable/disable switches for the currently integrated Applications, Settings, and Contacts providers.
 - [x] Source selections are held only in the current Compose session and are not written to durable storage.
@@ -90,13 +91,37 @@ Exact implementation checkpoint `b201e182d0698bee55f19e37e46f9d42f419c638` passe
 - [ ] Durable provider preference storage and migration.
 - [ ] Everkeep continuity/recovery semantics for any future durable provider preferences.
 - [ ] Profile/device scoping for future durable source preferences.
-- [ ] Permission-review/action workflows that can guide the user to authoritative Android/Privacy Shield/Identity decisions without manufacturing those decisions locally.
 - [ ] Internet-provider preference after accepted requester/service authentication and real Privacy Shield runtime authorization exist.
 - [ ] Third-party provider connection/revocation controls, if approved.
 - [ ] Search-history controls if durable history is ever implemented.
 - [ ] Index/cache clearing controls when a reconstructible local index/cache exists.
 
 The current controls are **selection controls, not authority controls**. Enabling a source only permits Index to consider it; scope, provider contract, Android permission, Privacy Shield, GoreeCloud Identity, local-only mode, and other authority checks remain independent gates.
+
+## Privacy-Safe Authority Explanation and Android Permission Review
+
+Exact privacy-safe authority-explanation checkpoint `703dcf554981b4c00c10365b07de21ee937904d0` passed Android Index foundation validation #183 and Platform Contract #56.
+
+Exact Android Contacts permission-review checkpoint `774e727d5ec4e1c74c9ec85e3d023c9b508bd18c` passed Android Index foundation validation #188 and Platform Contract #61. Android #188 passed repository/provider/branding guards, the full unit-test suite, lint, Development APK assembly, APK identity verification, and evidence upload.
+
+- [x] `IndexSourceAuthorityStatus` exposes only missing authority-domain types.
+- [x] Contacts presentation state can distinguish Android runtime permission, Privacy Shield, and GoreeCloud Identity prerequisites without carrying raw authority evidence.
+- [x] Capability references, decision IDs, subject IDs, reason codes, timestamps, and raw authority objects are excluded from the presentation projection.
+- [x] Regression coverage verifies that an underlying Privacy Shield reference cannot appear in projected presentation state.
+- [x] UI explains why Contacts is blocked using coarse prerequisite labels and explicitly states that Index does not approve or bypass those authorities.
+- [x] Authority-derived presentation state refreshes on activity resume.
+- [x] `IndexPermissionReviewPolicy` exposes an Android Contacts permission action only when `ANDROID_RUNTIME_PERMISSION` is actually missing.
+- [x] Privacy Shield-only or Identity-only gaps do not become Android permission actions.
+- [x] The permission action is explicit and user-initiated; source selection/query execution never automatically opens a permission prompt.
+- [x] `ActivityResultContracts.RequestPermission` delegates the `READ_CONTACTS` decision to Android.
+- [x] If `READ_CONTACTS` is already granted, Index refreshes state rather than prompting again.
+- [x] UI states that Android owns the permission decision.
+- [x] UI states that an Android permission grant satisfies only the Android prerequisite and leaves Privacy Shield and GoreeCloud Identity independent.
+- [ ] Representative-device grant/deny/re-prompt/settings acceptance.
+- [ ] Accepted Privacy Shield user-decision/authorization interaction owned by Privacy Shield.
+- [ ] Accepted GoreeCloud Identity authorization interaction owned by GoreeCloud Identity.
+
+The permission-review slice is a Development Android handoff, not accepted Contacts runtime enablement. The shipped platform gateway still provides unavailable Privacy Shield and GoreeCloud Identity evidence, so Contacts remains non-dispatchable after an Android permission grant unless those independent authorities are also satisfied by accepted producer-owned evidence.
 
 ## Authority Model
 
@@ -106,11 +131,13 @@ The current controls are **selection controls, not authority controls**. Enablin
 - [x] Missing authority prevents provider dispatch.
 - [x] Static compatibility/authorization issues are computed before incremental provider launch and can be exposed in the initial snapshot.
 - [x] User source selection does not bypass scope, contract, or authority evaluation.
+- [x] Coarse authority explanation is presentation-only and does not mint/upgrade authority.
+- [x] Android permission review is Android-owned and does not satisfy Privacy Shield or Identity.
 - [x] Internal execution context is not described as platform authorization.
 - [x] Branch source: remote GoreeCloud Search uses a separate operation-scoped Privacy Shield authorization adapter and canonical `psc_*` capability-reference boundary.
 - [ ] Accepted Privacy Shield runtime adapter/decision-acquisition transport.
 - [ ] Accepted GoreeCloud Identity runtime adapter and authenticated service/requester identity path.
-- [ ] User decision/permission workflow bound to accepted platform decisions where applicable.
+- [ ] Producer-authoritative user-decision/authorization workflows for Privacy Shield and Identity where applicable.
 - [ ] Runtime decision expiry/revocation/obligation evaluation beyond currently modeled provider contracts.
 
 ## Applications Provider
@@ -140,9 +167,11 @@ The current controls are **selection controls, not authority controls**. Enablin
 - [x] Bounded result collection respects the caller-requested result count and provider hard ceiling.
 - [x] Current runtime keeps unavailable authority fail-closed, so protected Contacts dispatch is not fabricated.
 - [x] Session source selection can exclude Contacts before authority evaluation, but enabling it does not satisfy any missing authority requirement.
+- [x] Explicit user-initiated Android `READ_CONTACTS` permission review/grant handoff exists in Development source.
+- [x] Android permission result triggers authority-state refresh without bypassing remaining gates.
 - [ ] Accepted Contacts runtime enablement.
-- [ ] Explicit user opt-in and Android permission grant flow.
-- [ ] Representative-device cancellation/timeout/action acceptance.
+- [ ] Accepted Privacy Shield and GoreeCloud Identity runtime evidence path sufficient for end-to-end Contacts dispatch.
+- [ ] Representative-device permission/cancellation/timeout/action acceptance.
 
 ## Glaze UI V1.4 / 1.4.0 — Optical Intelligence
 
@@ -152,11 +181,12 @@ The current controls are **selection controls, not authority controls**. Enablin
 - [x] Authorization-required state remains distinct from operational failure/timeout.
 - [x] Compose source consumes incremental `IndexSearchSnapshot` Flow updates while preserving the same issue/result surface.
 - [x] Compose source exposes clearly labeled source controls and local-only/remote-unavailable disclosure without presenting source selection as authorization.
+- [x] Compose source exposes privacy-safe prerequisite explanation and a clearly labeled Android-owned permission-review action only when applicable.
 - [x] Safe-drawing insets, bounded targets, semantic headings, and non-animated progress remain represented in the Development source line.
 - [ ] Repository-local rendered/native V1.4 visual acceptance.
 - [ ] Reduced Transparency / Increased Contrast / Reduced Motion / large-text acceptance.
 - [ ] Localization/RTL acceptance.
-- [ ] Representative phone/tablet/form-factor and performance acceptance, including incremental result-update and source-control behavior.
+- [ ] Representative phone/tablet/form-factor and performance acceptance, including incremental result-update, source-control, and permission-review behavior.
 - [ ] Formal application-specific V1.4 conformance and production acceptance.
 
 ## Privacy Shield
@@ -168,7 +198,10 @@ The current controls are **selection controls, not authority controls**. Enablin
 - [x] Branch source consumes decision outcome/reference separately from Android permission.
 - [x] Branch source uses a bounded operation-scoped capability-reference contract for production Search delegation preparation.
 - [x] Source selection is explicitly not treated as Privacy Shield consent or authorization.
+- [x] Android permission review is explicitly not treated as Privacy Shield consent or authorization.
+- [x] Privacy-safe UI presentation does not expose raw Privacy Shield references or decision metadata.
 - [ ] Real Privacy Shield request/response decision-acquisition adapter and accepted runtime evidence.
+- [ ] Accepted Privacy Shield user-decision lifecycle where applicable.
 - [ ] Retained-decision lifecycle where applicable.
 
 ## GoreeCloud Identity
@@ -176,6 +209,8 @@ The current controls are **selection controls, not authority controls**. Enablin
 - [x] Authentication is not treated as blanket authorization.
 - [x] Branch source requires independent Identity authorization evidence for protected local providers where declared.
 - [x] Source selection does not create or substitute Identity authorization evidence.
+- [x] Android permission review does not create or substitute Identity authorization evidence.
+- [x] Privacy-safe presentation reports only that Identity remains required; it does not expose subject/profile evidence.
 - [ ] Actual Identity authorization adapter/API acceptance.
 - [ ] Authenticated requester/service identity for protected remote-provider transport.
 - [ ] User/profile/caller isolation acceptance.
@@ -202,6 +237,7 @@ GoreeCloud Sync is a separate application/service capability, not one of the sev
 - [x] Branch manifest declares the seven authoritative Integral Platform Systems: Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, and GoreeCloud Identity.
 - [x] Compatibility requires `goreecloud-platform-contract==0.3` and `glaze-ui==1.4.0`.
 - [x] Development validation is pinned to corrected GoreeCloud/GoreeCloud PR #30 candidate `96701cc5f20c8e0deaad512d2a9f83e0411f3f18` while that central PR remains draft/unmerged.
+- [x] Exact Android permission-review head `774e727d5ec4e1c74c9ec85e3d023c9b508bd18c` passed Platform Contract #61.
 - [x] Sync-specific future obligations remain tracked separately without converting Sync into an Integral Platform System.
 - [ ] Replace the temporary draft-candidate pin with an accepted central Platform Contract revision after normal governance completes.
 - [ ] Achieve passing application-specific results for every applicable Integral Platform System before Stable qualification.
