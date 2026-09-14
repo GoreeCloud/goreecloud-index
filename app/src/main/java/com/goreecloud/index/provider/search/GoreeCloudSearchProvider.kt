@@ -36,6 +36,7 @@ data class GoreeCloudSearchResult(
     val title: String,
     val url: String,
     val snippet: String? = null,
+    /** Search-owned score is transport metadata; Index does not compare it with local-provider scores. */
     val searchScore: Int = 0,
 )
 
@@ -115,7 +116,9 @@ class GoreeCloudSearchProvider(
             results = response.results
                 .asSequence()
                 .take(limit)
-                .map { result -> result.toIndexResult(normalizedQuery) }
+                .mapIndexed { sourceOrdinal, result ->
+                    result.toIndexResult(normalizedQuery, sourceOrdinal)
+                }
                 .toList(),
             degraded = response.degraded,
         )
@@ -144,7 +147,10 @@ class GoreeCloudSearchProvider(
         }
     }
 
-    private fun GoreeCloudSearchResult.toIndexResult(query: String): IndexResult {
+    private fun GoreeCloudSearchResult.toIndexResult(
+        query: String,
+        sourceOrdinal: Int,
+    ): IndexResult {
         val normalizedURL = normalizeWebURL(url)
         val normalizedTitle = title.trim()
         val normalizedSnippet = snippet?.trim()?.takeIf(String::isNotEmpty)
@@ -162,6 +168,7 @@ class GoreeCloudSearchProvider(
             subtitle = normalizedSnippet,
             score = localScore,
             action = normalizedURL?.let(IndexAction::OpenWeb),
+            sourceOrdinal = sourceOrdinal,
         )
     }
 
