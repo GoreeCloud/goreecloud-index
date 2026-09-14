@@ -32,6 +32,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
                 privacyAuthorizationScheme = null,
                 privacyAuthorizationHeader = null,
                 privacyAuthorizationEnforcement = null,
+                authenticatedRequesterRequired = false,
                 maxRequestBytes = 0,
             ),
         ) {
@@ -132,7 +133,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
             acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
             authorizationClient = GoreeCloudSearchAuthorizationClient {
                 authorizationCalls++
-                GoreeCloudSearchPrivacyAuthorization("privacy-shield:capability:test")
+                GoreeCloudSearchPrivacyAuthorization("psc_test")
             },
         )
 
@@ -142,7 +143,42 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
 
         assertTrue(failure is IllegalStateException)
         assertEquals(
-            "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization transport",
+            "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization and authenticated requester transport",
+            failure?.message,
+        )
+        assertEquals(0, authorizationCalls)
+        assertEquals(0, searchCalls)
+    }
+
+    @Test
+    fun productionModeRejectsMissingAuthenticatedRequesterRequirementBeforeAuthorizationOrQuery() = runTest {
+        var authorizationCalls = 0
+        var searchCalls = 0
+        val provider = GoreeCloudSearchProvider(
+            client = GoreeCloudSearchClient { request ->
+                searchCalls++
+                emptyResponse(request)
+            },
+            capabilityClient = GoreeCloudSearchCapabilityClient {
+                capability(
+                    productionAccepted = true,
+                    authenticatedRequesterRequired = false,
+                )
+            },
+            acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
+            authorizationClient = GoreeCloudSearchAuthorizationClient {
+                authorizationCalls++
+                GoreeCloudSearchPrivacyAuthorization("psc_test")
+            },
+        )
+
+        val failure = runCatching {
+            provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(
+            "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization and authenticated requester transport",
             failure?.message,
         )
         assertEquals(0, authorizationCalls)
@@ -191,7 +227,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
             acceptanceMode = GoreeCloudSearchAcceptanceMode.PRODUCTION,
             authorizationClient = GoreeCloudSearchAuthorizationClient { request ->
                 observedAuthorizationRequest = request
-                GoreeCloudSearchPrivacyAuthorization("privacy-shield:capability:test")
+                GoreeCloudSearchPrivacyAuthorization("psc_test")
             },
         )
 
@@ -201,7 +237,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         assertEquals("private_goreecloud", observedAuthorizationRequest?.processingZone)
         assertEquals("https://search.goreecloud.com", observedAuthorizationRequest?.destination)
         assertEquals("none", observedAuthorizationRequest?.retentionMode)
-        assertEquals("privacy-shield:capability:test", observedRequest?.privacyCapabilityReference)
+        assertEquals("psc_test", observedRequest?.privacyCapabilityReference)
     }
 
     private fun provider(
@@ -217,7 +253,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         acceptanceMode = mode,
         authorizationClient = if (mode == GoreeCloudSearchAcceptanceMode.PRODUCTION) {
             GoreeCloudSearchAuthorizationClient {
-                GoreeCloudSearchPrivacyAuthorization("privacy-shield:capability:test")
+                GoreeCloudSearchPrivacyAuthorization("psc_test")
             }
         } else {
             null
@@ -237,6 +273,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         privacyAuthorizationScheme: String? = GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME,
         privacyAuthorizationHeader: String? = GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER,
         privacyAuthorizationEnforcement: String? = GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT,
+        authenticatedRequesterRequired: Boolean = true,
         maxRequestBytes: Int = GOREECLOUD_SEARCH_MAX_REQUEST_BYTES,
     ): GoreeCloudSearchCapability = GoreeCloudSearchCapability(
         id = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
@@ -257,6 +294,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         privacyAuthorizationScheme = privacyAuthorizationScheme,
         privacyAuthorizationHeader = privacyAuthorizationHeader,
         privacyAuthorizationEnforcement = privacyAuthorizationEnforcement,
+        authenticatedRequesterRequired = authenticatedRequesterRequired,
         maxRequestBytes = maxRequestBytes,
     )
 
