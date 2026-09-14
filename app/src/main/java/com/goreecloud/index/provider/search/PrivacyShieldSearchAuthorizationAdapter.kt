@@ -2,14 +2,22 @@ package com.goreecloud.index.provider.search
 
 import java.time.Instant
 
+internal const val PRIVACY_SHIELD_SEARCH_REQUIRED_OUTCOME = "ALLOW_WITH_CONSTRAINTS"
+internal val PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS: Set<String> = setOf(
+    "record_privacy_evidence",
+    "generate_privacy_receipt",
+    "enforce_processing_zone",
+)
+
 /**
- * Transport-neutral adapter between Privacy Shield's canonical decision response
- * and Index's production GoreeCloud Search authorization client.
+ * Transport-neutral adapter between Privacy Shield's canonical enforcement
+ * result and Index's production GoreeCloud Search authorization client.
  *
- * Network or IPC acquisition of the decision remains a separate runtime concern.
- * This adapter only accepts an unconstrained, unexpired ALLOW for the exact
- * Search operation and returns the capability-token reference that is allowed to
- * travel with the delegated operation.
+ * Private GoreeCloud processing is intentionally constrained. The adapter
+ * accepts only the exact constraint set whose authority-side evidence/receipt
+ * obligations are satisfied by Privacy Shield and whose processing-zone
+ * obligation must be enforced by the Search-side capability verifier. Unknown
+ * or additional obligations remain fail-closed.
  */
 class PrivacyShieldSearchAuthorizationAdapter(
     private val decisionClient: PrivacyShieldDecisionClient,
@@ -39,8 +47,8 @@ class PrivacyShieldSearchAuthorizationAdapter(
         check(decision.requestId == request.requestId) {
             "Privacy Shield Search decision does not match the authorization request"
         }
-        check(decision.outcome == "ALLOW") {
-            "Privacy Shield Search decision is not an unconstrained allow"
+        check(decision.outcome == PRIVACY_SHIELD_SEARCH_REQUIRED_OUTCOME) {
+            "Privacy Shield Search decision does not match the required constrained outcome"
         }
         check(request.operation in decision.permittedOperations) {
             "Privacy Shield Search decision does not permit the Search operation"
@@ -54,8 +62,8 @@ class PrivacyShieldSearchAuthorizationAdapter(
         check(decision.retentionMode == request.retentionMode) {
             "Privacy Shield Search decision does not permit the required retention mode"
         }
-        check(decision.obligations.isEmpty()) {
-            "Privacy Shield Search decision contains obligations Index cannot enforce"
+        check(decision.obligations == PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS) {
+            "Privacy Shield Search decision contains an unsupported obligation set"
         }
         if (decision.expiresAt != null) {
             val expiresAt = runCatching { Instant.parse(decision.expiresAt) }.getOrNull()
@@ -64,8 +72,9 @@ class PrivacyShieldSearchAuthorizationAdapter(
                 "Privacy Shield Search decision is expired"
             }
         }
-        check(!decision.capabilityTokenReference.isNullOrBlank()) {
-            "Privacy Shield Search decision is missing a capability-token reference"
+        val capabilityReference = decision.capabilityTokenReference?.trim()
+        check(capabilityReference != null && capabilityReference.startsWith("psc_") && capabilityReference.length > 4) {
+            "Privacy Shield Search decision is missing a canonical capability-token reference"
         }
     }
 }
