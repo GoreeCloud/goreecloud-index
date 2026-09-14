@@ -18,6 +18,10 @@ internal const val GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID = "search.query"
 internal const val GOREECLOUD_SEARCH_QUERY_ENDPOINT = "/api/v1/search"
 internal const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
 internal const val GOREECLOUD_SEARCH_PREFERRED_METHOD = "POST"
+internal const val GOREECLOUD_SEARCH_PREFERRED_QUERY_TRANSPORT = "json_body"
+internal const val GOREECLOUD_SEARCH_REQUEST_MEDIA_TYPE = "application/json"
+internal const val GOREECLOUD_SEARCH_RESPONSE_MEDIA_TYPE = "application/json"
+internal const val GOREECLOUD_SEARCH_MAX_REQUEST_BYTES = 16 * 1024
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
 
 /**
@@ -60,6 +64,11 @@ data class GoreeCloudSearchCapability(
     /** Additive transport evidence. Legacy Development producers may omit it. */
     val methods: Set<String> = setOf("GET"),
     val preferredMethod: String = "GET",
+    val preferredQueryTransport: String = "url_query",
+    val requestMediaType: String? = null,
+    val responseMediaType: String? = null,
+    val privacyAuthorizationRequired: Boolean = false,
+    val maxRequestBytes: Int = 0,
 )
 
 enum class GoreeCloudSearchAcceptanceMode {
@@ -115,11 +124,13 @@ class GoreeCloudSearchProvider(
         check(response.category == request.category) {
             "GoreeCloud Search response category does not match the delegated category"
         }
+        check(response.results.size <= limit) {
+            "GoreeCloud Search response exceeded the delegated result limit"
+        }
 
         return IndexProviderResponse(
             results = response.results
                 .asSequence()
-                .take(limit)
                 .mapIndexed { sourceOrdinal, result ->
                     result.toIndexResult(normalizedQuery, sourceOrdinal)
                 }
@@ -148,6 +159,15 @@ class GoreeCloudSearchProvider(
             ) {
                 "GoreeCloud Search query capability does not provide the required production POST transport"
             }
+            check(
+                capability.preferredQueryTransport == GOREECLOUD_SEARCH_PREFERRED_QUERY_TRANSPORT &&
+                    capability.requestMediaType == GOREECLOUD_SEARCH_REQUEST_MEDIA_TYPE &&
+                    capability.responseMediaType == GOREECLOUD_SEARCH_RESPONSE_MEDIA_TYPE &&
+                    capability.privacyAuthorizationRequired &&
+                    capability.maxRequestBytes == GOREECLOUD_SEARCH_MAX_REQUEST_BYTES
+            ) {
+                "GoreeCloud Search query capability does not provide the required private JSON-body contract"
+            }
         }
         check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
             "GoreeCloud Search query endpoint is incompatible"
@@ -164,6 +184,12 @@ class GoreeCloudSearchProvider(
         val normalizedURL = normalizeWebURL(url)
         val normalizedTitle = title.trim()
         val normalizedSnippet = snippet?.trim()?.takeIf(String::isNotEmpty)
+        check(normalizedTitle.isNotEmpty()) {
+            "GoreeCloud Search returned a result without a title"
+        }
+        check(normalizedURL != null) {
+            "GoreeCloud Search returned an invalid web result URL"
+        }
         val localScore = IndexTextMatcher.score(
             query = query,
             title = normalizedTitle,
@@ -171,13 +197,13 @@ class GoreeCloudSearchProvider(
         ) ?: 0
 
         return IndexResult(
-            id = normalizedURL.orEmpty(),
+            id = normalizedURL,
             providerId = providerId,
             type = IndexResultType.WEB,
             title = normalizedTitle,
             subtitle = normalizedSnippet,
             score = localScore,
-            action = normalizedURL?.let(IndexAction::OpenWeb),
+            action = IndexAction.OpenWeb(normalizedURL),
             sourceOrdinal = sourceOrdinal,
         )
     }
