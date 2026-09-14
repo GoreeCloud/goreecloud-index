@@ -10,6 +10,14 @@ internal val PRIVACY_SHIELD_SEARCH_REQUIRED_OBLIGATIONS: Set<String> = setOf(
     "enforce_processing_zone",
 )
 
+internal fun isCanonicalPrivacyShieldCapabilityReference(reference: String?): Boolean {
+    if (reference == null || !reference.startsWith("psc_") || reference.length <= 4) return false
+    if (reference.length > PRIVACY_SHIELD_SEARCH_CAPABILITY_REFERENCE_MAX_LENGTH) return false
+    return reference.none { character ->
+        character.isWhitespace() || Character.isISOControl(character.code)
+    }
+}
+
 /**
  * Transport-neutral adapter between Privacy Shield's canonical enforcement
  * result and Index's production GoreeCloud Search authorization client.
@@ -76,14 +84,6 @@ class PrivacyShieldSearchAuthorizationAdapter(
         val capabilityReference = decision.capabilityTokenReference?.trim()
         check(isCanonicalPrivacyShieldCapabilityReference(capabilityReference)) {
             "Privacy Shield Search decision is missing a canonical capability-token reference"
-        }
-    }
-
-    private fun isCanonicalPrivacyShieldCapabilityReference(reference: String?): Boolean {
-        if (reference == null || !reference.startsWith("psc_") || reference.length <= 4) return false
-        if (reference.length > PRIVACY_SHIELD_SEARCH_CAPABILITY_REFERENCE_MAX_LENGTH) return false
-        return reference.none { character ->
-            character.isWhitespace() || Character.isISOControl(character.code)
         }
     }
 }
