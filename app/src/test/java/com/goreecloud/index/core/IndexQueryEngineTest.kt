@@ -327,6 +327,66 @@ class IndexQueryEngineTest {
     }
 
     @Test
+    fun crossProviderRankingUsesIndexNormalizedRelevanceInsteadOfProviderScoreScale() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val exact = provider("exact", "Exact") {
+            listOf(result("exact", "exact", "Calendar", 1))
+        }
+        val inflated = provider("inflated", "Inflated") {
+            listOf(result("weak", "inflated", "Notes about calendar", Int.MAX_VALUE))
+        }
+
+        val snapshot = IndexQueryEngine(listOf(inflated, exact), dispatcher).search(
+            rawQuery = "calendar",
+            executionContext = contextFor("inflated", "exact"),
+        )
+
+        assertEquals(
+            listOf("Calendar", "Notes about calendar"),
+            snapshot.results.map { it.title },
+        )
+    }
+
+    @Test
+    fun sameProviderRankingRetainsProviderLocalScore() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val appsProvider = provider("apps", "Applications") {
+            listOf(
+                result("low", "apps", "Calendar alpha", 1),
+                result("high", "apps", "Calendar beta", 9_999),
+            )
+        }
+
+        val snapshot = IndexQueryEngine(listOf(appsProvider), dispatcher).search(
+            rawQuery = "calendar",
+            executionContext = contextFor("apps"),
+        )
+
+        assertEquals(
+            listOf("Calendar beta", "Calendar alpha"),
+            snapshot.results.map { it.title },
+        )
+    }
+
+    @Test
+    fun crossProviderNormalizedTieUsesStableIdentityNotProviderScore() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val alpha = provider("alpha", "Alpha") {
+            listOf(result("one", "alpha", "Calendar", 1))
+        }
+        val zulu = provider("zulu", "Zulu") {
+            listOf(result("two", "zulu", "Calendar", Int.MAX_VALUE))
+        }
+
+        val snapshot = IndexQueryEngine(listOf(zulu, alpha), dispatcher).search(
+            rawQuery = "calendar",
+            executionContext = contextFor("zulu", "alpha"),
+        )
+
+        assertEquals(listOf("alpha", "zulu"), snapshot.results.map { it.providerId })
+    }
+
+    @Test
     fun resultLimitRemainsBounded() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val appsProvider = provider("apps", "Applications") {
