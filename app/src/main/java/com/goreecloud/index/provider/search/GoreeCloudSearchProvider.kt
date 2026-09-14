@@ -16,11 +16,21 @@ import java.util.Locale
 internal const val GOREECLOUD_SEARCH_API_VERSION = "1"
 internal const val GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID = "search.query"
 internal const val GOREECLOUD_SEARCH_QUERY_ENDPOINT = "/api/v1/search"
+internal const val GOREECLOUD_SEARCH_DISCOVERY_ENDPOINT = "/api/v1/status"
+internal const val GOREECLOUD_SEARCH_DISCOVERY_COLLECTION = "capability_evidence"
+internal const val GOREECLOUD_SEARCH_ORIGIN = "https://search.goreecloud.com"
 internal const val GOREECLOUD_SEARCH_MAX_RESULTS = 100
 internal const val GOREECLOUD_SEARCH_PREFERRED_METHOD = "POST"
 internal const val GOREECLOUD_SEARCH_PREFERRED_QUERY_TRANSPORT = "json_body"
 internal const val GOREECLOUD_SEARCH_REQUEST_MEDIA_TYPE = "application/json"
 internal const val GOREECLOUD_SEARCH_RESPONSE_MEDIA_TYPE = "application/json"
+internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME =
+    "privacy_shield_capability_token_reference"
+internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER =
+    "X-GoreeCloud-Privacy-Capability"
+internal const val GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT = "required"
+internal const val GOREECLOUD_SEARCH_PRIVACY_PROCESSING_ZONE = "private_goreecloud"
+internal const val GOREECLOUD_SEARCH_PRIVACY_RETENTION_MODE = "none"
 internal const val GOREECLOUD_SEARCH_MAX_REQUEST_BYTES = 16 * 1024
 private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
 
@@ -28,13 +38,15 @@ private const val GOREECLOUD_SEARCH_GENERAL_CATEGORY = "general"
  * The only data Index needs to send to GoreeCloud Search for the initial
  * Internet-provider contract. Keeping this transport-neutral request narrow is
  * intentional: local provider state, local results, files, contacts, calendar
- * data, application inventory, identity identifiers, and authorization evidence
- * are not part of this boundary.
+ * data, application inventory, identity identifiers, and raw authorization
+ * evidence are not part of this boundary. Production requests carry only the
+ * capability-token reference that Privacy Shield authorized for this operation.
  */
 data class GoreeCloudSearchRequest(
     val query: String,
     val category: String = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
     val limit: Int,
+    val privacyCapabilityReference: String? = null,
 )
 
 data class GoreeCloudSearchResult(
@@ -62,13 +74,29 @@ data class GoreeCloudSearchCapability(
     val maxResults: Int,
     val productionAccepted: Boolean,
     /** Additive transport evidence. Legacy Development producers may omit it. */
+    val discoveryEndpoint: String? = null,
+    val discoveryCollection: String? = null,
     val methods: Set<String> = setOf("GET"),
     val preferredMethod: String = "GET",
     val preferredQueryTransport: String = "url_query",
     val requestMediaType: String? = null,
     val responseMediaType: String? = null,
     val privacyAuthorizationRequired: Boolean = false,
+    val privacyAuthorizationScheme: String? = null,
+    val privacyAuthorizationHeader: String? = null,
+    val privacyAuthorizationEnforcement: String? = null,
     val maxRequestBytes: Int = 0,
+)
+
+data class GoreeCloudSearchPrivacyAuthorizationRequest(
+    val operation: String = GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID,
+    val processingZone: String = GOREECLOUD_SEARCH_PRIVACY_PROCESSING_ZONE,
+    val destination: String = GOREECLOUD_SEARCH_ORIGIN,
+    val retentionMode: String = GOREECLOUD_SEARCH_PRIVACY_RETENTION_MODE,
+)
+
+data class GoreeCloudSearchPrivacyAuthorization(
+    val capabilityTokenReference: String,
 )
 
 enum class GoreeCloudSearchAcceptanceMode {
@@ -84,10 +112,24 @@ fun interface GoreeCloudSearchCapabilityClient {
     suspend fun queryCapability(): GoreeCloudSearchCapability
 }
 
+fun interface GoreeCloudSearchAuthorizationClient {
+    suspend fun authorize(
+        request: GoreeCloudSearchPrivacyAuthorizationRequest,
+    ): GoreeCloudSearchPrivacyAuthorization
+}
+
+object GoreeCloudSearchCapabilityDiscovery {
+    fun select(capabilities: List<GoreeCloudSearchCapability>): GoreeCloudSearchCapability? {
+        val matches = capabilities.filter { it.id == GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID }
+        return matches.singleOrNull()
+    }
+}
+
 class GoreeCloudSearchProvider(
     private val client: GoreeCloudSearchClient,
     private val capabilityClient: GoreeCloudSearchCapabilityClient,
     private val acceptanceMode: GoreeCloudSearchAcceptanceMode = GoreeCloudSearchAcceptanceMode.DEVELOPMENT,
+    private val authorizationClient: GoreeCloudSearchAuthorizationClient? = null,
 ) : IndexStatusAwareProvider {
     override val providerId: String = GoreeCloudIndexContract.PROVIDER_SEARCH
     override val displayName: String = "GoreeCloud Search"
@@ -104,6 +146,7 @@ class GoreeCloudSearchProvider(
 
         val capability = capabilityClient.queryCapability()
         validateCapability(capability)
+        val privacyCapabilityReference = productionPrivacyCapabilityReference()
         val limit = minOf(
             query.maxResults.coerceIn(1, GOREECLOUD_SEARCH_MAX_RESULTS),
             capability.maxResults,
@@ -112,6 +155,7 @@ class GoreeCloudSearchProvider(
             query = normalizedQuery,
             category = GOREECLOUD_SEARCH_GENERAL_CATEGORY,
             limit = limit,
+            privacyCapabilityReference = privacyCapabilityReference,
         )
         val response = client.search(request)
 
@@ -137,6 +181,18 @@ class GoreeCloudSearchProvider(
         )
     }
 
+    private suspend fun productionPrivacyCapabilityReference(): String? {
+        if (acceptanceMode != GoreeCloudSearchAcceptanceMode.PRODUCTION) return null
+        val authorizer = checkNotNull(authorizationClient) {
+            "GoreeCloud Search production delegation requires a Privacy Shield authorization client"
+        }
+        val authorization = authorizer.authorize(GoreeCloudSearchPrivacyAuthorizationRequest())
+        return authorization.capabilityTokenReference
+            .trim()
+            .takeIf(String::isNotEmpty)
+            ?: error("GoreeCloud Search production delegation requires a Privacy Shield capability-token reference")
+    }
+
     private fun validateCapability(capability: GoreeCloudSearchCapability) {
         check(capability.id == GOREECLOUD_SEARCH_QUERY_CAPABILITY_ID) {
             "GoreeCloud Search query capability is unavailable"
@@ -152,6 +208,12 @@ class GoreeCloudSearchProvider(
                 "GoreeCloud Search query capability is not production accepted"
             }
             check(
+                capability.discoveryEndpoint == GOREECLOUD_SEARCH_DISCOVERY_ENDPOINT &&
+                    capability.discoveryCollection == GOREECLOUD_SEARCH_DISCOVERY_COLLECTION
+            ) {
+                "GoreeCloud Search query capability discovery contract is incompatible"
+            }
+            check(
                 GOREECLOUD_SEARCH_PREFERRED_METHOD in capability.methods &&
                     capability.preferredMethod == GOREECLOUD_SEARCH_PREFERRED_METHOD
             ) {
@@ -161,10 +223,17 @@ class GoreeCloudSearchProvider(
                 capability.preferredQueryTransport == GOREECLOUD_SEARCH_PREFERRED_QUERY_TRANSPORT &&
                     capability.requestMediaType == GOREECLOUD_SEARCH_REQUEST_MEDIA_TYPE &&
                     capability.responseMediaType == GOREECLOUD_SEARCH_RESPONSE_MEDIA_TYPE &&
-                    capability.privacyAuthorizationRequired &&
                     capability.maxRequestBytes == GOREECLOUD_SEARCH_MAX_REQUEST_BYTES
             ) {
                 "GoreeCloud Search query capability does not provide the required private JSON-body contract"
+            }
+            check(
+                capability.privacyAuthorizationRequired &&
+                    capability.privacyAuthorizationScheme == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_SCHEME &&
+                    capability.privacyAuthorizationHeader == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER &&
+                    capability.privacyAuthorizationEnforcement == GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT
+            ) {
+                "GoreeCloud Search query capability does not enforce the required Privacy Shield authorization transport"
             }
         }
         check(capability.endpoint == GOREECLOUD_SEARCH_QUERY_ENDPOINT) {
