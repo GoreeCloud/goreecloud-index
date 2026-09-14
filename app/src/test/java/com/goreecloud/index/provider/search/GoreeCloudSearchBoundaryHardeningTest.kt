@@ -69,6 +69,9 @@ class GoreeCloudSearchBoundaryHardeningTest {
         privacyAuthorizationHeader = GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_HEADER,
         privacyAuthorizationEnforcement = GOREECLOUD_SEARCH_PRIVACY_AUTHORIZATION_ENFORCEMENT,
         authenticatedRequesterRequired = true,
+        authenticatedRequesterAuthority = GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_AUTHORITY,
+        authenticatedRequesterScheme = GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_SCHEME,
+        authenticatedRequesterHeader = GOREECLOUD_SEARCH_REQUESTER_AUTHENTICATION_HEADER,
         maxRequestBytes = GOREECLOUD_SEARCH_MAX_REQUEST_BYTES,
     )
 }
