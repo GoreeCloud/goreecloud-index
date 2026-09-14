@@ -2,7 +2,9 @@
 
 ## Status
 
-**Release lifecycle: Development.** Accepted `main` remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current branch work is Development source pending exact-head validation and merge acceptance. Production acceptance and Stable qualification remain false.
+**Release lifecycle: Development.** Accepted `main` remains `cc3cc21d6e11dad026253c3371c3b67663d3b726`. Current branch work is Development source pending normal merge acceptance. Production acceptance and Stable qualification remain false.
+
+The latest verified implementation checkpoint is `36056e4640e9c083fadbcabc0b0fa05d40615070`. Platform Contract #36 and Android Index foundation validation #163 passed on that exact revision, including repository contract validation, unit tests, lint, Development APK assembly, APK identity verification, and evidence upload.
 
 ## Authority Model
 
@@ -30,22 +32,30 @@ Launcher, Browser, or user
       → local/remote processing boundary
       → provider authority evidence
   → IndexRoot / query lifecycle
-  → IndexQueryEngine
+  → IndexQueryEngine.searchIncrementally
+      → normalize query + clamp result limit
       → blank-query applicability
-      → fail-closed authority evaluation
-      → structured concurrent dispatch
+      → fail-closed scope / contract / authority evaluation
+      → emit initial snapshot with static compatibility / authorization issues
+      → launch eligible providers concurrently
       → bounded per-provider timeout
-      → validate provider provenance/identity/title/source-order/result-count contract
+      → validate provider provenance / identity / title / source-order / result-count contract
       → keep at most the requested number of strongest distinct provider-local results
-      → normalize cross-provider textual relevance
-      → prefer healthy source only when normalized relevance ties
-      → prefer LOCAL, then MIXED, then REMOTE only when relevance and health tie
-  → IndexSearchSnapshot
-      → ranked provider-scoped results
-      → AUTHORIZATION_REQUIRED / FAILED / TIMED_OUT / DEGRADED / INVALID_RESULT issues
-  → source-aware UI
+      → after each provider completion, rebuild the complete accumulated snapshot through one composition path
+          → normalize cross-provider textual relevance
+          → prefer healthy source only when normalized relevance ties
+          → prefer LOCAL, then MIXED, then REMOTE only when relevance and health tie
+          → deterministic identity fallback
+          → provider-scoped deduplication and final result cap
+      → emit incrementally updated snapshot
+  → IndexRoot collects the Flow
+      → earlier authorized results can render while slower providers remain in flight
+      → late stronger results may deterministically re-rank the accumulated snapshot
+      → replacing/cancelling collection cancels outstanding provider work
   → typed validated handoff
 ```
+
+The one-shot `search()` API consumes the **final** `searchIncrementally()` snapshot rather than implementing an independent composition algorithm. This prevents one-shot and interactive search semantics from drifting apart.
 
 ## Core Authority Model
 
@@ -55,6 +65,8 @@ Launcher, Browser, or user
 
 This is a **consumer contract**, not substitute authority. No Identity endpoint is invented by Index and no Privacy Shield decision is fabricated locally.
 
+Incremental delivery does not weaken this boundary. Static compatibility and authorization issues are computed before provider dispatch and are present in the initial Flow snapshot. A provider that fails scope, contract, or authority checks is never launched merely to produce incremental UI state.
+
 ## Provider Contract
 
 `IndexProvider` declares stable identity, display name, processing location, timeout, authority requirements, blank-query support, contract version, and suspendable search behavior.
@@ -63,7 +75,9 @@ The engine considers only providers applicable to the current query. This preven
 
 Providers must be independently cancellable, bounded by timeout, and unable to suppress healthy sibling providers through ordinary failure. Providers receive `IndexQuery.maxResults` and are expected not to return more results than requested. The engine independently enforces that boundary: an over-limit response is reported as `INVALID_RESULT`, then reduced to the strongest distinct provider-local results up to the requested limit before cross-provider composition. This prevents a buggy or hostile provider from expanding federation work simply by ignoring the query contract.
 
-Bounding does not trust response order. Index applies the same-provider score/source-order semantics first, preserves the strongest duplicate for each provider-local ID, and only then takes the requested result count. Invalid-result detection still precedes an ordinary `DEGRADED` signal so contract violations remain visible.
+Bounding does not trust response order. Index applies same-provider score/source-order semantics first, preserves the strongest duplicate for each provider-local ID, and only then takes the requested result count. Invalid-result detection still precedes an ordinary `DEGRADED` signal so contract violations remain visible.
+
+Provider completion order controls only **when** a partial snapshot can be emitted. It does not control ranking. Every emission is recomposed from accumulated provider outcomes through the same comparator, validation, and deduplication logic.
 
 The provider-declared `processingLocation` is available to Index-owned composition only after the provider passes scope and authority gates. It is not authorization: a remote provider must first be eligible and authorized before any ranking tie-break can consider its results.
 
@@ -107,6 +121,8 @@ The Search provider is the remote Internet/current-information provider.
 
 Development builds may consume explicitly Development-only Search capability evidence only as Development evidence. Stable/production Index builds must require explicitly production-accepted Search capability evidence.
 
+The incremental engine is transport-neutral: it can incorporate a future authorized remote Search provider when that provider becomes eligible, but it does **not** itself enable remote Search, acquire Privacy Shield authority, or authenticate a requester.
+
 See [`docs/SEARCH_INTEGRATION.md`](docs/SEARCH_INTEGRATION.md).
 
 ## Result and Action Boundary
@@ -125,7 +141,7 @@ Invalid executable actions fail closed with sanitized user-visible/provider issu
 
 Index is responsible for cross-provider composition. Provider-local scores are authoritative only inside the provider that produced them; raw score magnitudes are not compared across provider boundaries.
 
-The current Development engine implements explicit normalization, bounded source health, bounded local-first composition, and bounded provider fan-out:
+The current Development engine implements explicit normalization, bounded source health, bounded local-first composition, bounded provider fan-out, and deterministic incremental recomposition:
 
 - cross-provider ordering uses Index-owned normalized textual relevance derived from title and subtitle match quality;
 - exact, prefix, token-prefix, contained-title, and secondary-text matches use one Index-owned scale;
@@ -140,23 +156,35 @@ The current Development engine implements explicit normalization, bounded source
 - processing location is subordinate to relevance and health: a stronger remote result still outranks a weaker local result, and a healthy remote result can outrank an equally relevant degraded local result;
 - location ranking never makes an ineligible provider eligible and never bypasses `localOnly`, allowlisting, Privacy Shield, Identity, or other authority gates;
 - equal cross-provider normalized relevance, equal health, and equal location fall back to deterministic stable title/provider/id ordering rather than raw provider score;
-- final provider-scoped deduplication remains as defense in depth without collapsing distinct resources owned by different providers.
+- final provider-scoped deduplication remains as defense in depth without collapsing distinct resources owned by different providers;
+- every incremental emission uses these same rules, so a slower but stronger result may safely move ahead of an earlier weaker result without introducing completion-order ranking authority.
 
 This is a bounded baseline, not the final blending model. Future ranking work can add explicit factors such as result type, source confidence, source-owned recency, user-declared source preference, richer capability/health evidence, and privacy cost more specific than processing location. Those factors must remain Index-owned, explainable, and independently authorized where applicable rather than inferred from incomparable provider score scales.
 
-## Cancellation and Performance
+## Incremental Delivery, Cancellation, and Performance
 
-Interactive search must cancel superseded work. Parent cancellation propagates to providers and must not be converted into ordinary failure.
+`searchIncrementally()` is a cold Kotlin `Flow<IndexSearchSnapshot>`.
 
-Provider timeouts remain bounded. Healthy sibling results survive a provider timeout or failure. Provider fan-out into federation is now bounded by the current query result limit after local validation/ranking/deduplication, reducing unnecessary cross-provider sorting and result retention when a provider violates its requested limit.
+- collection emits an initial snapshot containing static contract/authority issues before any eligible provider must finish;
+- each eligible provider runs concurrently under the query supervisor scope;
+- a bounded completion channel reports provider outcomes back to the composing coroutine;
+- after each completion, the engine rebuilds the accumulated result set with the same final comparator and issue semantics;
+- provider positions are retained independently of completion timing so issue ordering remains deterministic;
+- cancelling the Flow collector cancels the supervisor scope and outstanding provider jobs;
+- `CancellationException` is rethrown and is never converted into `FAILED` or `TIMED_OUT`;
+- provider-owned timeouts remain separately reported as `TIMED_OUT`;
+- the Compose query lifecycle collects the Flow, so a replacement query cancels the prior collection and its outstanding provider work;
+- one-shot `search()` returns the last Flow snapshot, providing one composition authority rather than two.
 
-Future optimization should favor incremental result delivery and stable result ordering without allowing late remote results to cause excessive UI churn. A future bounded-selection implementation may reduce provider-local sorting cost further if evidence shows that result-volume pressure justifies the additional complexity.
+This improves perceived latency when a fast eligible provider can produce useful results before a slower provider completes. It does not claim measured representative-device performance acceptance. Future optimization may add bounded UI-update coalescing or top-K selection if evidence shows that large provider counts/result volumes create churn or sorting pressure; such optimization must preserve deterministic final ordering and source-state evidence.
 
 ## UI Architecture
 
-Index UI must remain source-aware and expose meaningful provider health/authority states without disclosing sensitive internal evidence.
+Index UI remains source-aware and exposes meaningful provider health/authority states without disclosing sensitive internal evidence.
 
-The UI should distinguish authorization required, failed provider, timed out provider, degraded provider, invalid/bounded provider output, and no results. `INVALID_RESULT` user-facing text intentionally covers provenance/required-field/source-order failures and requested-result-limit violations without exposing sensitive internal payloads.
+The Compose surface now renders incremental `IndexSearchSnapshot` updates from the query Flow. Existing results may stay visible and be deterministically reordered as later providers complete. The `searching` state remains active until the Flow completes or is cancelled.
+
+The UI distinguishes authorization required, failed provider, timed out provider, degraded provider, invalid/bounded provider output, and no results. `INVALID_RESULT` user-facing text intentionally covers provenance/required-field/source-order failures and requested-result-limit violations without exposing sensitive internal payloads.
 
 ## Glaze UI
 
@@ -164,18 +192,19 @@ The current official Stable consumer target is **Glaze UI V1.4 / `1.4.0`**.
 
 Earlier Index documentation referenced historical/inconsistent targets. They are not current conformance authority.
 
-Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence.
+Index is migration-required until Index-owned surfaces and native mappings have repository-local V1.4 source, rendered/native, accessibility, and representative-device acceptance evidence. Incremental rendering is source-level behavior and does not itself satisfy those product-specific acceptance gates.
 
 ## Failure and Recovery Model
 
-- Missing authority → provider not dispatched; sanitized `AUTHORIZATION_REQUIRED`.
+- Missing authority → provider not dispatched; sanitized `AUTHORIZATION_REQUIRED` can appear in the initial snapshot.
 - Provider exception → sanitized `FAILED`; healthy sibling results preserved.
 - Provider timeout → sanitized `TIMED_OUT`; healthy sibling results preserved.
 - Provider degraded response → valid results may survive with `DEGRADED` status and health-aware equal-relevance composition.
 - Provider returns more results than requested → strongest distinct bounded results may survive, but the provider is reported as `INVALID_RESULT`.
 - Provider returns invalid provenance/required fields/source order → invalid entries are removed and `INVALID_RESULT` remains visible.
 - Equal relevance and health across different processing locations → prefer local execution without overriding a stronger remote result.
-- Parent/query cancellation → propagates.
+- Late stronger provider result → accumulated snapshot is deterministically recomposed and may reorder earlier results.
+- Collector/query cancellation → outstanding provider work is cancelled; no synthetic provider failure is manufactured.
 - Disallowed provider → not dispatched.
 - Remote provider under local-only execution → not dispatched and not preflighted.
 - Blank query + non-browsing provider → provider not considered and no authority issue emitted.
@@ -196,7 +225,7 @@ This is Development evidence only.
 2. validate Contacts on representative devices;
 3. harden the Search provider capability lifecycle and production-acceptance gate;
 4. extend the implemented textual + degraded-state + local-first composition baseline with intent-aware, result-type, source-confidence, richer source-health/capability, and more specific privacy-cost blending;
-5. add incremental result delivery while preserving deterministic cancellation and source status;
+5. measure incremental rendering/provider completion behavior on representative devices and add bounded update coalescing only if evidence shows excessive UI churn;
 6. expand files/calendar/media providers only after authority and privacy boundaries are proven;
 7. complete Glaze UI V1.4 migration and Index-local acceptance evidence;
 8. add Everkeep recovery semantics for any new durable Index preference/provider state.
