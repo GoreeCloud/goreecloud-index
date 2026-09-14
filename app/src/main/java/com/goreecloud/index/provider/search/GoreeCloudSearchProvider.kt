@@ -204,10 +204,15 @@ class GoreeCloudSearchProvider(
     override val processingLocation: IndexProcessingLocation = IndexProcessingLocation.REMOTE
     override val timeoutMillis: Long = 5_000L
     override val contractVersion: Int = GoreeCloudIndexContract.PROVIDER_CONTRACT_VERSION
-    override val authorityRequirements: Set<IndexAuthorityRequirement> = setOf(
-        IndexAuthorityRequirement.PRIVACY_SHIELD,
-        IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
-    )
+    override val authorityRequirements: Set<IndexAuthorityRequirement> =
+        if (acceptanceMode == GoreeCloudSearchAcceptanceMode.PRODUCTION) {
+            setOf(
+                IndexAuthorityRequirement.PRIVACY_SHIELD,
+                IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+            )
+        } else {
+            setOf(IndexAuthorityRequirement.PRIVACY_SHIELD)
+        }
     override val supportsEmptyQuery: Boolean = false
 
     override suspend fun searchWithStatus(query: IndexQuery): IndexProviderResponse {
