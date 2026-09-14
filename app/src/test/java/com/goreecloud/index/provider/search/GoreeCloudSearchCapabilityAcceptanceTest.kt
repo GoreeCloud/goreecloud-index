@@ -308,6 +308,9 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
                 observedAuthorizationRequest = request
                 GoreeCloudSearchPrivacyAuthorization(" psc_test ")
             },
+            requesterAuthenticationClient = GoreeCloudSearchRequesterAuthenticationClient {
+                GoreeCloudSearchRequesterAuthentication("identity-requester-token")
+            },
         )
 
         provider.searchWithStatus(IndexQuery(text = "goreecloud", maxResults = 1))
@@ -317,6 +320,7 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
         assertEquals("https://search.goreecloud.com", observedAuthorizationRequest?.destination)
         assertEquals("none", observedAuthorizationRequest?.retentionMode)
         assertEquals("psc_test", observedRequest?.privacyCapabilityReference)
+        assertEquals("identity-requester-token", observedRequest?.requesterBearerCredential)
     }
 
     @Test
@@ -335,6 +339,9 @@ class GoreeCloudSearchCapabilityAcceptanceTest {
             authorizationClient = GoreeCloudSearchAuthorizationClient {
                 authorizationCalls++
                 GoreeCloudSearchPrivacyAuthorization("psc_query_$authorizationCalls")
+            },
+            requesterAuthenticationClient = GoreeCloudSearchRequesterAuthenticationClient {
+                GoreeCloudSearchRequesterAuthentication("identity-requester-token")
             },
         )
 
