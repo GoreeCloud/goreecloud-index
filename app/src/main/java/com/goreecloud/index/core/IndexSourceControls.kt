@@ -1,6 +1,40 @@
 package com.goreecloud.index.core
 
 /**
+ * Privacy-safe presentation state for a provider's authorization prerequisites.
+ *
+ * This exposes only which authority domains are still required. It deliberately
+ * excludes evidence references, decision IDs, subject identifiers, reason codes,
+ * expiry timestamps, and any other authority-owned payload.
+ */
+data class IndexSourceAuthorityStatus(
+    val missingRequirements: Set<IndexAuthorityRequirement>,
+) {
+    val available: Boolean
+        get() = missingRequirements.isEmpty()
+}
+
+object IndexSourceAuthorityProjection {
+    fun project(
+        authority: IndexProviderAuthority,
+        requirements: Set<IndexAuthorityRequirement>,
+    ): IndexSourceAuthorityStatus = IndexSourceAuthorityStatus(
+        missingRequirements = requirements
+            .filterNot(authority::satisfies)
+            .toCollection(linkedSetOf()),
+    )
+
+    fun contacts(authority: IndexProviderAuthority): IndexSourceAuthorityStatus = project(
+        authority = authority,
+        requirements = linkedSetOf(
+            IndexAuthorityRequirement.ANDROID_RUNTIME_PERMISSION,
+            IndexAuthorityRequirement.PRIVACY_SHIELD,
+            IndexAuthorityRequirement.GOREECLOUD_IDENTITY,
+        ),
+    )
+}
+
+/**
  * Development-only user source selection policy.
  *
  * This policy intentionally exposes only the currently integrated local
