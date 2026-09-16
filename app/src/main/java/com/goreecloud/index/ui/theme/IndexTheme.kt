@@ -17,43 +17,46 @@ private val IndexShapes = Shapes(
 )
 
 private val GlazeLightColorScheme = lightColorScheme(
-    primary = Color(GlazeV14Contract.DEEP_TEAL),
+    primary = Color(GlazeV15Contract.DEEP_TEAL),
     onPrimary = Color.White,
-    primaryContainer = Color(GlazeV14Contract.SOFT_AQUA),
-    onPrimaryContainer = Color(GlazeV14Contract.DEEP_GRAPHITE),
-    secondary = Color(GlazeV14Contract.MINERAL_TEAL),
+    primaryContainer = Color(GlazeV15Contract.SOFT_AQUA),
+    onPrimaryContainer = Color(GlazeV15Contract.DEEP_GRAPHITE),
+    secondary = Color(GlazeV15Contract.MINERAL_TEAL),
     onSecondary = Color.White,
-    background = Color(GlazeV14Contract.FROST_WHITE),
-    onBackground = Color(GlazeV14Contract.COOL_GRAPHITE),
-    surface = Color(GlazeV14Contract.CRYSTAL_WHITE),
-    onSurface = Color(GlazeV14Contract.COOL_GRAPHITE),
-    surfaceVariant = Color(GlazeV14Contract.ICE_BLUE),
-    onSurfaceVariant = Color(GlazeV14Contract.SLATE_GRAY),
-    outline = Color(GlazeV14Contract.CLOUD_GRAY),
+    background = Color(GlazeV15Contract.FROST_WHITE),
+    onBackground = Color(GlazeV15Contract.COOL_GRAPHITE),
+    surface = Color(GlazeV15Contract.CRYSTAL_WHITE),
+    onSurface = Color(GlazeV15Contract.COOL_GRAPHITE),
+    surfaceVariant = Color(GlazeV15Contract.ICE_BLUE),
+    onSurfaceVariant = Color(GlazeV15Contract.SLATE_GRAY),
+    outline = Color(GlazeV15Contract.CLOUD_GRAY),
 )
 
 private val GlazeDarkColorScheme = darkColorScheme(
-    primary = Color(GlazeV14Contract.SOFT_AQUA),
-    onPrimary = Color(GlazeV14Contract.BLUE_BLACK),
-    primaryContainer = Color(GlazeV14Contract.DEEP_TEAL),
-    onPrimaryContainer = Color(GlazeV14Contract.CRYSTAL_WHITE),
-    secondary = Color(GlazeV14Contract.MINERAL_TEAL),
-    onSecondary = Color(GlazeV14Contract.BLUE_BLACK),
-    background = Color(GlazeV14Contract.BLUE_BLACK),
-    onBackground = Color(GlazeV14Contract.CRYSTAL_WHITE),
-    surface = Color(GlazeV14Contract.DEEP_GRAPHITE),
-    onSurface = Color(GlazeV14Contract.CRYSTAL_WHITE),
-    surfaceVariant = Color(GlazeV14Contract.COOL_GRAPHITE),
-    onSurfaceVariant = Color(GlazeV14Contract.CLOUD_GRAY),
-    outline = Color(GlazeV14Contract.SLATE_GRAY),
+    primary = Color(GlazeV15Contract.SOFT_AQUA),
+    onPrimary = Color(GlazeV15Contract.BLUE_BLACK),
+    primaryContainer = Color(GlazeV15Contract.DEEP_TEAL),
+    onPrimaryContainer = Color(GlazeV15Contract.CRYSTAL_WHITE),
+    secondary = Color(GlazeV15Contract.MINERAL_TEAL),
+    onSecondary = Color(GlazeV15Contract.BLUE_BLACK),
+    background = Color(GlazeV15Contract.BLUE_BLACK),
+    onBackground = Color(GlazeV15Contract.CRYSTAL_WHITE),
+    surface = Color(GlazeV15Contract.DEEP_GRAPHITE),
+    onSurface = Color(GlazeV15Contract.CRYSTAL_WHITE),
+    surfaceVariant = Color(GlazeV15Contract.COOL_GRAPHITE),
+    onSurfaceVariant = Color(GlazeV15Contract.CLOUD_GRAY),
+    outline = Color(GlazeV15Contract.SLATE_GRAY),
 )
 
 /**
- * GoreeCloud Index's deterministic native GLAZE UI V1.4 theme projection.
+ * GoreeCloud Index's deterministic native GLAZE UI V1.5 theme projection.
  *
- * The shared web Optical Engine is not executed inside Compose. Native optical effects remain
- * separately acceptance-gated; the shipped theme uses stable semantic color/shape mappings and
- * therefore stays on the solid, legible path until a reviewed native optical adapter exists.
+ * V1.5 inherits the reviewed V1.4.1 visual baseline. The shared web runtime is
+ * not executed inside Compose; context/capability state must be supplied by the
+ * owning Index/platform authority and is handled by `GlazeV15Contract` without
+ * granting authorization or operational authority. Native optical effects remain
+ * separately acceptance-gated, so the shipped theme stays on the solid, legible
+ * path until reviewed consumer evidence exists.
  */
 @Composable
 fun GoreeCloudIndexTheme(content: @Composable () -> Unit) {
